@@ -25,11 +25,14 @@
                         <h4 class="text-blue-500 mb-2">@<%= user.username %></h4>
                         <p class="text-sm tracking-tight"><%= post.content %></p>
                         <small class="mt-2 inline-block"><%= post.likes.length %>likes</small>
-                        <div class="btns flex gap-4 mt-1">
+                        <div class="btns flex gap-4 mt-1 items-center">
                             <a class="text-blue-500" href="/like/<%= post._id %>">
                                 <%= post.likes.indexOf(user._id) === -1 ? "Like" : "UnLike" %>
                             </a>
                             <a class="text-zinc-400" href="/edit/<%= post._id %>">edit</a>
+                            <form method="post" action="/delete/<%= post._id %>" class="inline" onsubmit="return confirm('Delete this post?');">
+                                <button type="submit" class="text-red-500 hover:underline">delete</button>
+                            </form>
                         </div>
                     </div>
 
