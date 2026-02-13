@@ -19,7 +19,7 @@ app.get('/',(req,res)=>{
 });
 
 app.get('/login',(req,res)=>{
-    res.render("login");
+    res.render("login", { exists: req.query.exists, registered: req.query.registered });
 });
 
 app.get('/profile',isLoggedIn, async(req,res)=>{
@@ -53,6 +53,17 @@ app.post('/update/:id',isLoggedIn, async(req,res)=>{
     res.redirect("/profile");
 });
 
+app.post('/delete/:id', isLoggedIn, async (req, res) => {
+    let post = await postModel.findOne({ _id: req.params.id });
+    if (!post) return res.redirect("/profile");
+    if (post.user.toString() !== req.user.userid.toString()) return res.redirect("/profile");
+    await postModel.findByIdAndDelete(req.params.id);
+    let user = await userModel.findOne({ email: req.user.email });
+    user.posts = user.posts.filter(id => id.toString() !== req.params.id);
+    await user.save();
+    res.redirect("/profile");
+});
+
 app.post('/post',isLoggedIn, async(req,res)=>{
     let user = await userModel.findOne({email:req.user.email});
     let {content} = req.body;
@@ -71,7 +82,7 @@ app.post('/register', async (req,res)=>{
     let {email, password, username, name, age} = req.body;
 
     let user = await userModel.findOne({email:email});
-    if(user) return res.status(500).send("User already registered");
+    if(user) return res.redirect("/login?exists=1");
 
     bcrypt.genSalt(10,(err,salt)=>{
         bcrypt.hash(password,salt, async (err,hash)=>{
@@ -83,9 +94,7 @@ app.post('/register', async (req,res)=>{
                 password:hash
             });
 
-            let token = jwt.sign({email:email, userid:user._id},"shhhh");
-            res.cookie("token",token);
-            res.send("registered")
+            res.redirect("/login?registered=1");
         })
         
     })
