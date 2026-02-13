@@ -27,6 +27,11 @@ app.get('/profile',isLoggedIn, async(req,res)=>{
     res.render("profile",{user});
 });
 
+app.get('/feed', isLoggedIn, async (req, res) => {
+    let posts = await postModel.find({}).populate("user").sort({ date: -1 });
+    res.render("feed", { posts, currentUserId: req.user.userid });
+});
+
 app.get('/like/:id',isLoggedIn, async(req,res)=>{
     let post = await postModel.findOne({_id: req.params.id}).populate("user");
 
@@ -38,7 +43,8 @@ app.get('/like/:id',isLoggedIn, async(req,res)=>{
 
     
     await post.save();
-    res.redirect("/profile");
+    if (req.query.from === "feed") res.redirect("/feed");
+    else res.redirect("/profile");
 });
 
 app.get('/edit/:id',isLoggedIn, async(req,res)=>{
