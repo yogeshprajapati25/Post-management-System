@@ -12,6 +12,33 @@ async function getFeed(req, res) {
     res.render("feed", { posts, currentUserId: req.user.userid });
 }
 
+// Add a comment to a post
+async function postComment(req, res) {
+    const postId = req.params.id;
+    const content = req.body.content;
+    try {
+        await postService.addComment(postId, req.user.userid, content);
+    } catch (err) {
+        // ignore for now
+    }
+    res.redirect('/feed');
+}
+
+// Delete a comment (allowed for comment owner or post owner)
+async function postDeleteComment(req, res) {
+    const { postId, commentId } = req.params;
+    await postService.deleteComment(postId, commentId, req.user.userid);
+    res.redirect('/feed');
+}
+
+// Edit a comment (only comment owner)
+async function postEditComment(req, res) {
+    const { postId, commentId } = req.params;
+    const { content } = req.body;
+    await postService.editComment(postId, commentId, req.user.userid, content);
+    res.redirect('/feed');
+}
+
 // Like / unlike a post
 async function toggleLike(req, res) {
     await postService.toggleLike(req.params.id, req.user.userid);
@@ -52,5 +79,8 @@ module.exports = {
     postUpdate,
     postDelete,
     postCreate,
+    postComment,
+    postDeleteComment,
+    postEditComment,
 };
 

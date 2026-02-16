@@ -7,7 +7,7 @@ async function getProfileByEmail(email) {
 }
 
 async function getAllPosts() {
-    let posts = await postModel.find({}).populate("user").sort({ date: -1 });
+    let posts = await postModel.find({}).populate("user").populate('comments.user').sort({ date: -1 });
     return posts;
 }
 
@@ -25,7 +25,49 @@ async function toggleLike(postId, userId) {
 }
 
 async function getPostById(id) {
-    return await postModel.findOne({ _id: id }).populate("user");
+    return await postModel.findOne({ _id: id }).populate("user").populate('comments.user');
+}
+
+async function addComment(postId, userId, content) {
+    let post = await postModel.findOne({ _id: postId });
+    if (!post) throw new Error('POST_NOT_FOUND');
+
+    post.comments.push({ user: userId, content });
+    await post.save();
+    return await post.populate('comments.user');
+}
+
+async function deleteComment(postId, commentId, requesterId) {
+    let post = await postModel.findOne({ _id: postId }).populate('comments.user');
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+
+    const isCommentOwner = comment.user && comment.user._id.toString() === requesterId.toString();
+    const isPostOwner = post.user && post.user.toString() === requesterId.toString();
+
+    if (!isCommentOwner && !isPostOwner) return { ok: false, reason: 'NOT_ALLOWED' };
+
+    // Remove the comment by filtering the comments array (works whether subdoc methods are present or not)
+    post.comments = post.comments.filter(c => c._id.toString() !== commentId.toString());
+    await post.save();
+    return { ok: true };
+}
+
+async function editComment(postId, commentId, requesterId, newContent) {
+    let post = await postModel.findOne({ _id: postId }).populate('comments.user');
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+
+    const isCommentOwner = comment.user && comment.user._id.toString() === requesterId.toString();
+    if (!isCommentOwner) return { ok: false, reason: 'NOT_ALLOWED' };
+
+    comment.content = newContent;
+    await post.save();
+    return { ok: true, comment };
 }
 
 async function updatePostContent(id, content) {
@@ -61,4 +103,7 @@ module.exports = {
     updatePostContent,
     deletePost,
     createPost,
+    addComment,
+    deleteComment,
+    editComment,
 };
