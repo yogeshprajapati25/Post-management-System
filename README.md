@@ -45,13 +45,7 @@ Notes about current (unchanged) defaults in code:
 - `middleware/` — `auth.js` (`isLoggedIn` JWT-check middleware).
 - `views/` — EJS templates: `index.ejs`, `login.ejs`, `signup.ejs`, `profile.ejs`, `feed.ejs`, `edit.ejs`.
 
-## Known caveats (observed from current code)
 
-- JWT secret hardcoded and no token expiry configured.
-- Cookies are set without `httpOnly`, `secure`, or `sameSite` flags.
-- MongoDB connection is placed inside a model file rather than centralized in `app.js` or `config/`.
-- `package.json` lacks `start` and `dev` scripts.
-- `multer` is listed in dependencies but not used by the current code.
 
 ## Where to look
 
@@ -59,14 +53,22 @@ Notes about current (unchanged) defaults in code:
 - Posts: `controllers/postController.js`, `routes/postRoutes.js`, `models/post.js`.
 - Views: `views/` directory (EJS templates).
 
-## Suggested next steps (optional)
 
-(These are suggestions only — no changes made by this doc.)
 
-- Move DB connect to `app.js` or `config/db.js` and use `dotenv` for configuration.
-- Replace hardcoded JWT secret with `process.env.JWT_SECRET` and add token expiry.
-- Set cookie flags (`httpOnly`, `secure`, `sameSite`) when writing cookies.
-- Add `start`/`dev` scripts and minimal logging and error-handling middleware.
 
----
-Generated documentation reflects the repository in its current state.
+## Design (brief)
+
+This project follows a small Express MVC pattern with server-rendered EJS views. Core pieces:
+
+- Models: Mongoose schemas in `models/` (`user`, `post`).
+- Controllers: handle HTTP requests and responses (located in `controllers/`).
+- Routes: map URLs to controller actions (`routes/`).
+- Middleware: auth middleware in `middleware/auth.js` protects routes using JWT in a cookie.
+
+I refactored controller logic into thin endpoints that call service modules in `services/` (new). Services encapsulate the core business logic (user creation/login, post creation/manipulation). This separation improves testability and keeps controllers focused on HTTP concerns.
+
+See `Design.md` for the original design document.
+
+
+
+
