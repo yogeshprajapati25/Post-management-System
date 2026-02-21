@@ -19,7 +19,8 @@ async function register({ email, password, username, name, age }) {
         password: hash,
     });
 
-    let token = jwt.sign({ email: email, userid: created._id }, "shhhh");
+    // let token = jwt.sign({ email: email, userid: created._id }, "shhhh");
+    let token = jwt.sign({ email, userid: created._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     return { user: created, token };
 }
 
@@ -29,8 +30,7 @@ async function login({ email, password }) {
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return null;
-
-    let token = jwt.sign({ email: email, userid: user._id }, "shhhh");
+    let token = jwt.sign({ email: email, userid: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     return { user, token };
 }
 

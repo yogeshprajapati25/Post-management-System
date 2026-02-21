@@ -20,7 +20,9 @@ async function postRegister(req, res) {
     let { email, password, username, name, age } = req.body;
     try {
         const result = await authService.register({ email, password, username, name, age });
-        res.cookie("token", result.token);
+        const isProd = process.env.NODE_ENV === 'production';
+        const cookieOpts = { httpOnly: true, secure: isProd, sameSite: 'lax' };
+        res.cookie("token", result.token, cookieOpts);
         res.redirect("/profile");
     } catch (err) {
         if (err && err.code === "EXISTS") return res.redirect("/login?exists=1");
@@ -40,7 +42,9 @@ async function postLogin(req, res) {
     try {
         const result = await authService.login({ email, password });
         if (result && result.token) {
-            res.cookie("token", result.token);
+            const isProd = process.env.NODE_ENV === 'production';
+            const cookieOpts = { httpOnly: true, secure: isProd, sameSite: 'lax' };
+            res.cookie("token", result.token, cookieOpts);
             return res.redirect("/profile");
         }
         return res.redirect("/login");
@@ -51,10 +55,11 @@ async function postLogin(req, res) {
 
 // Logout
 async function logout(req, res) {
-    res.cookie("token", "");
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOpts = { httpOnly: true, secure: isProd, sameSite: 'lax' };
+    res.clearCookie("token", cookieOpts);
     res.redirect("/login");
 }
-
 module.exports = {
     getLanding,
     getLogin,
