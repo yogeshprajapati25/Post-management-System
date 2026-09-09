@@ -30,10 +30,19 @@
         function likedByMe(likes, uid) {
             return (likes || []).some(function(id){ return id.toString() === uid.toString(); });
         }
+        function childCount(comments, parentId) {
+            var pid = parentId ? parentId.toString() : null;
+            return (comments || []).filter(function(c) {
+                var p = c.parent ? c.parent.toString() : null;
+                return p === pid;
+            }).length;
+        }
         %>
 
         <div class="max-w-2xl mx-auto flex flex-col gap-6">
-            <% posts.forEach(function(post){ %>
+            <% posts.forEach(function(post){
+                var topCount = childCount(post.comments, null);
+            %>
                 <div class="post p-5 rounded-xl border border-zinc-700 bg-zinc-900/80">
                     <h4 class="text-blue-400 font-medium mb-1">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
                     <p class="text-sm text-zinc-100 tracking-tight mb-2"><%= post.content %></p>
@@ -52,66 +61,151 @@
                             </form>
                         </div>
 
-                        <% 
-                        function renderComments(parentId, depth) {
-                            (post.comments || []).forEach(function(c) {
-                                var cParent = c.parent ? c.parent.toString() : null;
-                                if (cParent !== parentId) return;
+                        <% if (topCount > 0) { %>
+                        <button type="button"
+                            class="show-top-comments mb-3 text-sm font-medium text-blue-400 hover:text-blue-300"
+                            data-panel="top-<%= post._id %>"
+                            data-count="<%= topCount %>">
+                            View <%= topCount %> comment<%= topCount === 1 ? '' : 's' %>
+                        </button>
+
+                        <div id="top-<%= post._id %>" class="top-comments-panel hidden" data-shown="0" data-page="20">
+                            <% 
+                            function renderComment(c, depth) {
                                 var isLiked = likedByMe(c.likes, currentUserId);
                                 var likeCount = (c.likes && c.likes.length) ? c.likes.length : 0;
-                        %>
-                            <div class="comment mb-4 <%= depth > 0 ? 'pl-4 border-l border-zinc-700' : '' %>" style="margin-left: <%= depth * 12 %>px">
-                                <div class="flex gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-700 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-zinc-300">
-                                        <%= (c.user && c.user.username ? c.user.username.charAt(0) : '?').toUpperCase() %>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex flex-wrap items-baseline gap-2">
-                                            <span class="font-semibold text-sm">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></span>
-                                            <span class="text-xs text-zinc-500"><%= timeAgo(c.date) %></span>
+                                var replies = childCount(post.comments, c._id);
+                            %>
+                                <div class="comment comment-item hidden mb-4 <%= depth > 0 ? 'pl-4 border-l border-zinc-700' : '' %>" style="margin-left: <%= depth * 8 %>px">
+                                    <div class="flex gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-zinc-700 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-zinc-300">
+                                            <%= (c.user && c.user.username ? c.user.username.charAt(0) : '?').toUpperCase() %>
                                         </div>
-                                        <p class="text-sm text-zinc-200 mt-0.5 leading-relaxed"><%= c.content %></p>
-                                        <div class="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
-                                            <a href="/comment/<%= post._id %>/like/<%= c._id %>" class="inline-flex items-center gap-1.5 hover:text-white <%= isLiked ? 'text-blue-400' : '' %>">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="<%= isLiked ? 'currentColor' : 'none' %>" stroke="currentColor" class="w-4 h-4" stroke-width="1.8">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.507 4.507 0 0 0 .612-1.54c.2-.99.902-1.765 1.94-1.765h.012A2.25 2.25 0 0 1 18 4.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-4.545a2.25 2.25 0 0 0-1.98 1.18l-.426.852A1.125 1.125 0 0 1 7.702 17.5H5.25a2.25 2.25 0 0 1-2.25-2.25v-3.5a2.25 2.25 0 0 1 2.25-2.25h1.383Z" />
-                                                </svg>
-                                                <% if (likeCount > 0) { %><span><%= likeCount %></span><% } %>
-                                            </a>
-                                            <button type="button" class="font-medium uppercase tracking-wide hover:text-white reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
-                                            <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
-                                                <button type="button" class="edit-comment-btn hover:text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
-                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
-                                                    <button type="submit" class="hover:text-red-400">Delete</button>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex flex-wrap items-baseline gap-2">
+                                                <span class="font-semibold text-sm">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></span>
+                                                <span class="text-xs text-zinc-500"><%= timeAgo(c.date) %></span>
+                                            </div>
+                                            <p class="text-sm text-zinc-200 mt-0.5 leading-relaxed"><%= c.content %></p>
+                                            <div class="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
+                                                <a href="/comment/<%= post._id %>/like/<%= c._id %>" class="inline-flex items-center gap-1.5 hover:text-white <%= isLiked ? 'text-blue-400' : '' %>">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="<%= isLiked ? 'currentColor' : 'none' %>" stroke="currentColor" class="w-4 h-4" stroke-width="1.8">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.507 4.507 0 0 0 .612-1.54c.2-.99.902-1.765 1.94-1.765h.012A2.25 2.25 0 0 1 18 4.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-4.545a2.25 2.25 0 0 0-1.98 1.18l-.426.852A1.125 1.125 0 0 1 7.702 17.5H5.25a2.25 2.25 0 0 1-2.25-2.25v-3.5a2.25 2.25 0 0 1 2.25-2.25h1.383Z" />
+                                                    </svg>
+                                                    <% if (likeCount > 0) { %><span><%= likeCount %></span><% } %>
+                                                </a>
+                                                <button type="button" class="font-medium uppercase tracking-wide hover:text-white reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
+                                                <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
+                                                    <button type="button" class="edit-comment-btn hover:text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
+                                                    <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
+                                                        <button type="submit" class="hover:text-red-400">Delete</button>
+                                                    </form>
+                                                <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
+                                                    <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
+                                                        <button type="submit" class="hover:text-red-400">Delete</button>
+                                                    </form>
+                                                <% } %>
+                                            </div>
+                                            <div class="add-comment hidden mt-3" id="reply-<%= c._id %>">
+                                                <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                                    <input type="hidden" name="parent" value="<%= c._id %>" />
+                                                    <input name="content" placeholder="Add a reply..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none" required />
+                                                    <button type="submit" class="px-3 py-2 bg-blue-600 rounded-full text-sm">Reply</button>
                                                 </form>
-                                            <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
-                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
-                                                    <button type="submit" class="hover:text-red-400">Delete</button>
-                                                </form>
+                                            </div>
+
+                                            <% if (replies > 0) { %>
+                                            <button type="button"
+                                                class="view-replies mt-3 text-sm font-medium text-blue-400 hover:text-blue-300"
+                                                data-panel="replies-<%= c._id %>"
+                                                data-count="<%= replies %>">
+                                                View <%= replies %> <%= replies === 1 ? 'reply' : 'replies' %>
+                                            </button>
+                                            <div id="replies-<%= c._id %>" class="replies-panel hidden mt-3" data-shown="0" data-page="20">
+                                                <% 
+                                                (post.comments || []).forEach(function(child) {
+                                                    var cp = child.parent ? child.parent.toString() : null;
+                                                    if (cp !== c._id.toString()) return;
+                                                    renderComment(child, depth + 1);
+                                                });
+                                                %>
+                                                <button type="button" class="load-more-replies hidden mt-2 text-sm font-medium text-zinc-300 hover:text-white" data-panel="replies-<%= c._id %>">
+                                                    Load more replies
+                                                </button>
+                                            </div>
                                             <% } %>
                                         </div>
-                                        <div class="add-comment hidden mt-3" id="reply-<%= c._id %>">
-                                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
-                                                <input type="hidden" name="parent" value="<%= c._id %>" />
-                                                <input name="content" placeholder="Add a reply..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none" required />
-                                                <button type="submit" class="px-3 py-2 bg-blue-600 rounded-full text-sm">Reply</button>
-                                            </form>
-                                        </div>
-                                        <% renderComments(c._id.toString(), depth + 1); %>
                                     </div>
                                 </div>
-                            </div>
-                        <% 
+                            <% 
+                            }
+
+                            (post.comments || []).forEach(function(c) {
+                                if (c.parent) return;
+                                renderComment(c, 0);
                             });
-                        }
-                        renderComments(null, 0);
-                        %>
+                            %>
+                            <button type="button" class="load-more-comments hidden mt-2 text-sm font-medium text-zinc-300 hover:text-white" data-panel="top-<%= post._id %>">
+                                Load more comments
+                            </button>
+                        </div>
+                        <% } %>
                     </div>
                 </div>
             <% }) %>
         </div>
 
     <script>
+        const PAGE = 20;
+
+        function revealBatch(panel) {
+            const items = Array.from(panel.querySelectorAll(':scope > .comment-item'));
+            let shown = parseInt(panel.dataset.shown || '0', 10);
+            const page = parseInt(panel.dataset.page || PAGE, 10);
+            const next = Math.min(shown + page, items.length);
+            for (let i = shown; i < next; i++) items[i].classList.remove('hidden');
+            panel.dataset.shown = String(next);
+
+            const loadBtn = panel.querySelector(':scope > .load-more-comments, :scope > .load-more-replies');
+            if (loadBtn) {
+                if (next < items.length) loadBtn.classList.remove('hidden');
+                else loadBtn.classList.add('hidden');
+            }
+        }
+
+        document.querySelectorAll('.show-top-comments, .view-replies').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panel = document.getElementById(btn.getAttribute('data-panel'));
+                if (!panel) return;
+
+                if (panel.classList.contains('hidden')) {
+                    panel.classList.remove('hidden');
+                    if (parseInt(panel.dataset.shown || '0', 10) === 0) revealBatch(panel);
+                    const count = btn.getAttribute('data-count');
+                    if (btn.classList.contains('show-top-comments')) {
+                        btn.textContent = 'Hide comments';
+                    } else {
+                        btn.textContent = 'Hide replies';
+                    }
+                } else {
+                    panel.classList.add('hidden');
+                    const count = btn.getAttribute('data-count');
+                    if (btn.classList.contains('show-top-comments')) {
+                        btn.textContent = `View ${count} comment${count === '1' ? '' : 's'}`;
+                    } else {
+                        btn.textContent = `View ${count} ${count === '1' ? 'reply' : 'replies'}`;
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.load-more-comments, .load-more-replies').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panel = document.getElementById(btn.getAttribute('data-panel'));
+                if (panel) revealBatch(panel);
+            });
+        });
+
         document.querySelectorAll('.comment-toggle, .reply-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 const el = document.getElementById(btn.getAttribute('data-target'));
