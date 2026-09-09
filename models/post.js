@@ -18,6 +18,7 @@ const postSchema = mongoose.Schema({
     comments:[{
         user:{ type: mongoose.Schema.Types.ObjectId, ref: "user" },
         content:String,
+        parent:{ type: mongoose.Schema.Types.ObjectId, default: null },
         date:{ type: Date, default: Date.now }
     }]
 });

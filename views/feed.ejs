@@ -26,70 +26,81 @@
                         <a class="text-blue-500" href="/like/<%= post._id %>?from=feed">
                             <%= post.likes.indexOf(currentUserId) === -1 ? "Like" : "UnLike" %>
                         </a>
-                                <button type="button" class="text-green-400 comment-toggle" data-post-id="<%= post._id %>">Comment</button>
+                        <button type="button" class="text-green-400 comment-toggle" data-target="add-<%= post._id %>">Comment</button>
                     </div>
-                            <div class="comments mt-3">
-                                <div class="existing-comments mb-2">
-                                    <% if (post.comments && post.comments.length) { %>
-                                        <% post.comments.forEach(function(c){ %>
-                                            <div class="comment p-2 rounded-md bg-zinc-800 mb-2 flex justify-between items-start">
-                                                <div>
-                                                    <strong class="text-blue-400">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></strong>
-                                                    <p class="text-sm"><%= c.content %></p>
-                                                </div>
-                                                <div class="comment-actions text-sm">
-                                                    <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
-                                                        <div>
-                                                            <form action="/comment/<%= post._id %>/edit/<%= c._id %>" method="post" style="display:inline">
-                                                                <button type="button" class="edit-comment-btn text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
-                                                            </form>
-                                                            <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
-                                                                <button type="submit" class="text-red-400">Delete</button>
-                                                            </form>
-                                                        </div>
-                                                    <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
-                                                        <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
-                                                            <button type="submit" class="text-red-400">Delete</button>
-                                                        </form>
-                                                    <% } %>
-                                                </div>
-                                            </div>
-                                        <% }) %>
-                                    <% } %>
+                    <div class="comments mt-3">
+                        <div class="existing-comments mb-2">
+                            <% 
+                            function renderComments(parentId, depth) {
+                                (post.comments || []).forEach(function(c) {
+                                    var cParent = c.parent ? c.parent.toString() : null;
+                                    if (cParent !== parentId) return;
+                            %>
+                                <div class="comment p-2 rounded-md bg-zinc-800 mb-2" style="margin-left: <%= depth * 16 %>px">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <strong class="text-blue-400">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></strong>
+                                            <p class="text-sm"><%= c.content %></p>
+                                        </div>
+                                        <div class="comment-actions text-sm flex flex-col gap-1 items-end">
+                                            <button type="button" class="text-green-400 reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
+                                            <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
+                                                <button type="button" class="edit-comment-btn text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
+                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
+                                                    <button type="submit" class="text-red-400">Delete</button>
+                                                </form>
+                                            <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
+                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
+                                                    <button type="submit" class="text-red-400">Delete</button>
+                                                </form>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                    <div class="add-comment hidden mt-2" id="reply-<%= c._id %>">
+                                        <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                            <input type="hidden" name="parent" value="<%= c._id %>" />
+                                            <input name="content" placeholder="Write a reply..." class="flex-1 px-2 py-1 rounded-md text-black" required />
+                                            <button type="submit" class="px-3 py-1 bg-blue-500 rounded-md">Reply</button>
+                                        </form>
+                                    </div>
+                                    <% renderComments(c._id.toString(), depth + 1); %>
                                 </div>
-                                <div class="add-comment hidden" id="add-<%= post._id %>">
-                                    <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
-                                        <input name="content" placeholder="Write a comment..." class="flex-1 px-2 py-1 rounded-md text-black" required />
-                                        <button type="submit" class="px-3 py-1 bg-blue-500 rounded-md">Post</button>
-                                    </form>
-                                </div>
-                            </div>
+                            <% 
+                                });
+                            }
+                            renderComments(null, 0);
+                            %>
+                        </div>
+                        <div class="add-comment hidden" id="add-<%= post._id %>">
+                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                <input name="content" placeholder="Write a comment..." class="flex-1 px-2 py-1 rounded-md text-black" required />
+                                <button type="submit" class="px-3 py-1 bg-blue-500 rounded-md">Post</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             <% }) %>
         </div>
     <script>
-        document.querySelectorAll('.comment-toggle').forEach(btn => {
-            btn.addEventListener('click', e => {
-                const postId = btn.getAttribute('data-post-id');
-                const el = document.getElementById('add-' + postId);
+        document.querySelectorAll('.comment-toggle, .reply-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const el = document.getElementById(btn.getAttribute('data-target'));
                 if (el) el.classList.toggle('hidden');
-            })
+            });
         });
 
-        // edit buttons: toggle an inline edit form
         document.querySelectorAll('.edit-comment-btn').forEach(btn => {
-            btn.addEventListener('click', e => {
+            btn.addEventListener('click', () => {
                 const postId = btn.getAttribute('data-post-id');
                 const commentId = btn.getAttribute('data-comment-id');
                 const commentEl = btn.closest('.comment');
                 if (!commentEl) return;
                 const contentP = commentEl.querySelector('p');
                 const old = contentP ? contentP.textContent : '';
-                // create edit form
                 const form = document.createElement('form');
                 form.method = 'post';
                 form.action = `/comment/${postId}/edit/${commentId}`;
-                form.className = 'flex gap-2';
+                form.className = 'flex gap-2 mt-2';
                 const input = document.createElement('input');
                 input.name = 'content';
                 input.value = old;
@@ -102,12 +113,7 @@
                 cancel.type = 'button';
                 cancel.className = 'px-3 py-1 bg-zinc-700 rounded-md';
                 cancel.textContent = 'Cancel';
-                cancel.addEventListener('click', () => {
-                    // restore original
-                    commentEl.querySelector('div').style.display = '';
-                    form.remove();
-                });
-                commentEl.querySelector('div').style.display = 'none';
+                cancel.addEventListener('click', () => form.remove());
                 form.appendChild(input);
                 form.appendChild(save);
                 form.appendChild(cancel);
@@ -118,4 +124,3 @@
     </div>
 </body>
 </html>
-

@@ -12,12 +12,13 @@ async function getFeed(req, res) {
     res.render("feed", { posts, currentUserId: req.user.userid });
 }
 
-// Add a comment to a post
+// Add a comment to a post (or reply if parent is set)
 async function postComment(req, res) {
     const postId = req.params.id;
     const content = req.body.content;
+    const parent = req.body.parent || null;
     try {
-        await postService.addComment(postId, req.user.userid, content);
+        await postService.addComment(postId, req.user.userid, content, parent);
     } catch (err) {
         // ignore for now
     }

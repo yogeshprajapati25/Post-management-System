@@ -28,11 +28,16 @@ async function getPostById(id) {
     return await postModel.findOne({ _id: id }).populate("user").populate('comments.user');
 }
 
-async function addComment(postId, userId, content) {
+async function addComment(postId, userId, content, parentId = null) {
     let post = await postModel.findOne({ _id: postId });
     if (!post) throw new Error('POST_NOT_FOUND');
 
-    post.comments.push({ user: userId, content });
+    if (parentId) {
+        const parent = post.comments.id(parentId);
+        if (!parent) throw new Error('PARENT_NOT_FOUND');
+    }
+
+    post.comments.push({ user: userId, content, parent: parentId || null });
     await post.save();
     return await post.populate('comments.user');
 }
@@ -49,8 +54,19 @@ async function deleteComment(postId, commentId, requesterId) {
 
     if (!isCommentOwner && !isPostOwner) return { ok: false, reason: 'NOT_ALLOWED' };
 
-    // Remove the comment by filtering the comments array (works whether subdoc methods are present or not)
-    post.comments = post.comments.filter(c => c._id.toString() !== commentId.toString());
+    // Collect this comment + all nested descendants, then remove
+    const toRemove = new Set([commentId.toString()]);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        post.comments.forEach(c => {
+            if (c.parent && toRemove.has(c.parent.toString()) && !toRemove.has(c._id.toString())) {
+                toRemove.add(c._id.toString());
+                changed = true;
+            }
+        });
+    }
+    post.comments = post.comments.filter(c => !toRemove.has(c._id.toString()));
     await post.save();
     return { ok: true };
 }
