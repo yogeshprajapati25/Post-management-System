@@ -7,80 +7,110 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
-    <div class="w-full min-h-screen bg-zinc-900 text-white p-10">
-        <div class="w-full flex justify-between items-center mb-5">
+    <div class="w-full min-h-screen bg-zinc-900 text-white p-6 md:p-10">
+        <div class="w-full max-w-2xl mx-auto flex justify-between items-center mb-6">
             <h2 class="text-2xl font-semibold">All Posts</h2>
             <div class="flex gap-3">
-                <a class="bg-zinc-700 rounded-md px-3 py-2 text-sm inline-block" href="/profile">Your Posts</a>
-                <a class="bg-red-500 rounded-md px-3 py-2 text-sm inline-block" href="/logout">Logout</a>
+                <a class="bg-zinc-700 rounded-md px-3 py-2 text-sm" href="/profile">Your Posts</a>
+                <a class="bg-red-500 rounded-md px-3 py-2 text-sm" href="/logout">Logout</a>
             </div>
         </div>
 
-        <div class="postcontainer mt-5 flex flex-col gap-4">
+        <% 
+        function timeAgo(d) {
+            if (!d) return '';
+            var s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+            if (s < 60) return 'just now';
+            var m = Math.floor(s / 60); if (m < 60) return m + (m === 1 ? ' minute ago' : ' minutes ago');
+            var h = Math.floor(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+            var dy = Math.floor(h / 24); if (dy < 30) return dy + (dy === 1 ? ' day ago' : ' days ago');
+            var mo = Math.floor(dy / 30); if (mo < 12) return mo + (mo === 1 ? ' month ago' : ' months ago');
+            var y = Math.floor(mo / 12); return y + (y === 1 ? ' year ago' : ' years ago');
+        }
+        function likedByMe(likes, uid) {
+            return (likes || []).some(function(id){ return id.toString() === uid.toString(); });
+        }
+        %>
+
+        <div class="max-w-2xl mx-auto flex flex-col gap-6">
             <% posts.forEach(function(post){ %>
-                <div class="post w-1/3 p-4 rounded-md border-[1px] border-zinc-700">
-                    <h4 class="text-blue-500 mb-2">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
-                    <p class="text-sm tracking-tight"><%= post.content %></p>
-                    <small class="mt-2 inline-block"><%= post.likes.length %> likes</small>
-                    <div class="btns flex gap-4 mt-1 items-center">
-                        <a class="text-blue-500" href="/like/<%= post._id %>?from=feed">
-                            <%= post.likes.indexOf(currentUserId) === -1 ? "Like" : "UnLike" %>
+                <div class="post p-5 rounded-xl border border-zinc-700 bg-zinc-900/80">
+                    <h4 class="text-blue-400 font-medium mb-1">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
+                    <p class="text-sm text-zinc-100 tracking-tight mb-2"><%= post.content %></p>
+                    <div class="flex gap-4 items-center text-sm text-zinc-400 mb-4">
+                        <a class="hover:text-blue-400" href="/like/<%= post._id %>?from=feed">
+                            <%= likedByMe(post.likes, currentUserId) ? 'Unlike' : 'Like' %> · <%= post.likes.length %>
                         </a>
-                        <button type="button" class="text-green-400 comment-toggle" data-target="add-<%= post._id %>">Comment</button>
+                        <button type="button" class="hover:text-white comment-toggle" data-target="add-<%= post._id %>">Comment</button>
                     </div>
-                    <div class="comments mt-3">
-                        <div class="existing-comments mb-2">
-                            <% 
-                            function renderComments(parentId, depth) {
-                                (post.comments || []).forEach(function(c) {
-                                    var cParent = c.parent ? c.parent.toString() : null;
-                                    if (cParent !== parentId) return;
-                            %>
-                                <div class="comment p-2 rounded-md bg-zinc-800 mb-2" style="margin-left: <%= depth * 16 %>px">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <strong class="text-blue-400">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></strong>
-                                            <p class="text-sm"><%= c.content %></p>
+
+                    <div class="comments border-t border-zinc-800 pt-3">
+                        <div class="add-comment hidden mb-4" id="add-<%= post._id %>">
+                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                <input name="content" placeholder="Add a comment..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none focus:border-zinc-500" required />
+                                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-medium">Comment</button>
+                            </form>
+                        </div>
+
+                        <% 
+                        function renderComments(parentId, depth) {
+                            (post.comments || []).forEach(function(c) {
+                                var cParent = c.parent ? c.parent.toString() : null;
+                                if (cParent !== parentId) return;
+                                var isLiked = likedByMe(c.likes, currentUserId);
+                                var likeCount = (c.likes && c.likes.length) ? c.likes.length : 0;
+                        %>
+                            <div class="comment mb-4 <%= depth > 0 ? 'pl-4 border-l border-zinc-700' : '' %>" style="margin-left: <%= depth * 12 %>px">
+                                <div class="flex gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-zinc-700 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-zinc-300">
+                                        <%= (c.user && c.user.username ? c.user.username.charAt(0) : '?').toUpperCase() %>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-wrap items-baseline gap-2">
+                                            <span class="font-semibold text-sm">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></span>
+                                            <span class="text-xs text-zinc-500"><%= timeAgo(c.date) %></span>
                                         </div>
-                                        <div class="comment-actions text-sm flex flex-col gap-1 items-end">
-                                            <button type="button" class="text-green-400 reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
+                                        <p class="text-sm text-zinc-200 mt-0.5 leading-relaxed"><%= c.content %></p>
+                                        <div class="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
+                                            <a href="/comment/<%= post._id %>/like/<%= c._id %>" class="inline-flex items-center gap-1.5 hover:text-white <%= isLiked ? 'text-blue-400' : '' %>">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="<%= isLiked ? 'currentColor' : 'none' %>" stroke="currentColor" class="w-4 h-4" stroke-width="1.8">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.507 4.507 0 0 0 .612-1.54c.2-.99.902-1.765 1.94-1.765h.012A2.25 2.25 0 0 1 18 4.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-4.545a2.25 2.25 0 0 0-1.98 1.18l-.426.852A1.125 1.125 0 0 1 7.702 17.5H5.25a2.25 2.25 0 0 1-2.25-2.25v-3.5a2.25 2.25 0 0 1 2.25-2.25h1.383Z" />
+                                                </svg>
+                                                <% if (likeCount > 0) { %><span><%= likeCount %></span><% } %>
+                                            </a>
+                                            <button type="button" class="font-medium uppercase tracking-wide hover:text-white reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
                                             <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
-                                                <button type="button" class="edit-comment-btn text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
-                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
-                                                    <button type="submit" class="text-red-400">Delete</button>
+                                                <button type="button" class="edit-comment-btn hover:text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
+                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
+                                                    <button type="submit" class="hover:text-red-400">Delete</button>
                                                 </form>
                                             <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
-                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" style="display:inline">
-                                                    <button type="submit" class="text-red-400">Delete</button>
+                                                <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
+                                                    <button type="submit" class="hover:text-red-400">Delete</button>
                                                 </form>
                                             <% } %>
                                         </div>
+                                        <div class="add-comment hidden mt-3" id="reply-<%= c._id %>">
+                                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                                <input type="hidden" name="parent" value="<%= c._id %>" />
+                                                <input name="content" placeholder="Add a reply..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none" required />
+                                                <button type="submit" class="px-3 py-2 bg-blue-600 rounded-full text-sm">Reply</button>
+                                            </form>
+                                        </div>
+                                        <% renderComments(c._id.toString(), depth + 1); %>
                                     </div>
-                                    <div class="add-comment hidden mt-2" id="reply-<%= c._id %>">
-                                        <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
-                                            <input type="hidden" name="parent" value="<%= c._id %>" />
-                                            <input name="content" placeholder="Write a reply..." class="flex-1 px-2 py-1 rounded-md text-black" required />
-                                            <button type="submit" class="px-3 py-1 bg-blue-500 rounded-md">Reply</button>
-                                        </form>
-                                    </div>
-                                    <% renderComments(c._id.toString(), depth + 1); %>
                                 </div>
-                            <% 
-                                });
-                            }
-                            renderComments(null, 0);
-                            %>
-                        </div>
-                        <div class="add-comment hidden" id="add-<%= post._id %>">
-                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
-                                <input name="content" placeholder="Write a comment..." class="flex-1 px-2 py-1 rounded-md text-black" required />
-                                <button type="submit" class="px-3 py-1 bg-blue-500 rounded-md">Post</button>
-                            </form>
-                        </div>
+                            </div>
+                        <% 
+                            });
+                        }
+                        renderComments(null, 0);
+                        %>
                     </div>
                 </div>
             <% }) %>
         </div>
+
     <script>
         document.querySelectorAll('.comment-toggle, .reply-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -104,20 +134,20 @@
                 const input = document.createElement('input');
                 input.name = 'content';
                 input.value = old;
-                input.className = 'flex-1 px-2 py-1 rounded-md text-black';
+                input.className = 'flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm';
                 const save = document.createElement('button');
                 save.type = 'submit';
-                save.className = 'px-3 py-1 bg-green-500 rounded-md';
+                save.className = 'px-3 py-2 bg-green-600 rounded-full text-sm';
                 save.textContent = 'Save';
                 const cancel = document.createElement('button');
                 cancel.type = 'button';
-                cancel.className = 'px-3 py-1 bg-zinc-700 rounded-md';
+                cancel.className = 'px-3 py-2 bg-zinc-700 rounded-full text-sm';
                 cancel.textContent = 'Cancel';
                 cancel.addEventListener('click', () => form.remove());
                 form.appendChild(input);
                 form.appendChild(save);
                 form.appendChild(cancel);
-                commentEl.appendChild(form);
+                commentEl.querySelector('.flex-1').appendChild(form);
             });
         });
     </script>

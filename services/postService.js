@@ -86,6 +86,22 @@ async function editComment(postId, commentId, requesterId, newContent) {
     return { ok: true, comment };
 }
 
+async function toggleCommentLike(postId, commentId, userId) {
+    let post = await postModel.findOne({ _id: postId });
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+
+    if (!comment.likes) comment.likes = [];
+    const idx = comment.likes.findIndex(id => id.toString() === userId.toString());
+    if (idx === -1) comment.likes.push(userId);
+    else comment.likes.splice(idx, 1);
+
+    await post.save();
+    return { ok: true, likes: comment.likes.length };
+}
+
 async function updatePostContent(id, content) {
     return await postModel.findOneAndUpdate({ _id: id }, { content: content });
 }
@@ -122,4 +138,5 @@ module.exports = {
     addComment,
     deleteComment,
     editComment,
+    toggleCommentLike,
 };
