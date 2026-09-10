@@ -5,14 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Posts</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .yt-menu { display: none; }
+        .yt-menu.open { display: block; }
+        .comment:hover .yt-dots { opacity: 1; }
+        .yt-dots { opacity: 0; }
+        @media (hover: none) { .yt-dots { opacity: 1; } }
+    </style>
 </head>
 <body>
-    <div class="w-full min-h-screen bg-zinc-900 text-white p-6 md:p-10">
+    <div class="w-full min-h-screen bg-[#0f0f0f] text-[#f1f1f1] p-6 md:p-10">
         <div class="w-full max-w-2xl mx-auto flex justify-between items-center mb-6">
             <h2 class="text-2xl font-semibold">All Posts</h2>
             <div class="flex gap-3">
-                <a class="bg-zinc-700 rounded-md px-3 py-2 text-sm" href="/profile">Your Posts</a>
-                <a class="bg-red-500 rounded-md px-3 py-2 text-sm" href="/logout">Logout</a>
+                <a class="bg-[#272727] rounded-full px-4 py-2 text-sm" href="/profile">Your Posts</a>
+                <a class="bg-red-600 rounded-full px-4 py-2 text-sm" href="/logout">Logout</a>
             </div>
         </div>
 
@@ -21,14 +28,14 @@
             if (!d) return '';
             var s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
             if (s < 60) return 'just now';
-            var m = Math.floor(s / 60); if (m < 60) return m + (m === 1 ? ' minute ago' : ' minutes ago');
-            var h = Math.floor(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
-            var dy = Math.floor(h / 24); if (dy < 30) return dy + (dy === 1 ? ' day ago' : ' days ago');
-            var mo = Math.floor(dy / 30); if (mo < 12) return mo + (mo === 1 ? ' month ago' : ' months ago');
-            var y = Math.floor(mo / 12); return y + (y === 1 ? ' year ago' : ' years ago');
+            var m = Math.floor(s / 60); if (m < 60) return m + ' minute' + (m === 1 ? '' : 's') + ' ago';
+            var h = Math.floor(m / 60); if (h < 24) return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
+            var dy = Math.floor(h / 24); if (dy < 30) return dy + ' day' + (dy === 1 ? '' : 's') + ' ago';
+            var mo = Math.floor(dy / 30); if (mo < 12) return mo + ' month' + (mo === 1 ? '' : 's') + ' ago';
+            var y = Math.floor(mo / 12); return y + ' year' + (y === 1 ? '' : 's') + ' ago';
         }
-        function likedByMe(likes, uid) {
-            return (likes || []).some(function(id){ return id.toString() === uid.toString(); });
+        function likedByMe(arr, uid) {
+            return (arr || []).some(function(id){ return id.toString() === uid.toString(); });
         }
         function childCount(comments, parentId) {
             var pid = parentId ? parentId.toString() : null;
@@ -43,85 +50,115 @@
             <% posts.forEach(function(post){
                 var topCount = childCount(post.comments, null);
             %>
-                <div class="post p-5 rounded-xl border border-zinc-700 bg-zinc-900/80">
-                    <h4 class="text-blue-400 font-medium mb-1">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
-                    <p class="text-sm text-zinc-100 tracking-tight mb-2"><%= post.content %></p>
-                    <div class="flex gap-4 items-center text-sm text-zinc-400 mb-4">
-                        <a class="hover:text-blue-400" href="/like/<%= post._id %>?from=feed">
+                <div class="post p-5 rounded-xl bg-[#0f0f0f] border border-[#272727]">
+                    <h4 class="text-[#aaa] font-medium mb-1">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
+                    <p class="text-sm tracking-tight mb-2"><%= post.content %></p>
+                    <div class="flex gap-4 items-center text-sm text-[#aaa] mb-4">
+                        <a class="hover:text-white" href="/like/<%= post._id %>?from=feed">
                             <%= likedByMe(post.likes, currentUserId) ? 'Unlike' : 'Like' %> · <%= post.likes.length %>
                         </a>
                         <button type="button" class="hover:text-white comment-toggle" data-target="add-<%= post._id %>">Comment</button>
                     </div>
 
-                    <div class="comments border-t border-zinc-800 pt-3">
+                    <div class="comments border-t border-[#272727] pt-4">
                         <div class="add-comment hidden mb-4" id="add-<%= post._id %>">
-                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
-                                <input name="content" placeholder="Add a comment..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none focus:border-zinc-500" required />
-                                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-medium">Comment</button>
+                            <form action="/comment/<%= post._id %>" method="post" class="flex gap-3 items-start">
+                                <div class="w-10 h-10 rounded-full bg-[#3ea6ff] flex items-center justify-center text-sm font-bold flex-shrink-0">Y</div>
+                                <div class="flex-1">
+                                    <input name="content" placeholder="Add a comment..." class="w-full bg-transparent border-b border-[#717171] pb-1 text-sm outline-none focus:border-white" required />
+                                    <div class="flex justify-end gap-2 mt-2">
+                                        <button type="submit" class="px-4 py-1.5 bg-[#3ea6ff] text-black rounded-full text-sm font-medium">Comment</button>
+                                    </div>
+                                </div>
                             </form>
                         </div>
 
                         <% if (topCount > 0) { %>
                         <button type="button"
-                            class="show-top-comments mb-3 text-sm font-medium text-blue-400 hover:text-blue-300"
+                            class="show-top-comments mb-4 text-sm font-medium text-[#3ea6ff] hover:text-[#65b8ff]"
                             data-panel="top-<%= post._id %>"
                             data-count="<%= topCount %>">
-                            View <%= topCount %> comment<%= topCount === 1 ? '' : 's' %>
+                            <%= topCount %> Comment<%= topCount === 1 ? '' : 's' %>
                         </button>
 
                         <div id="top-<%= post._id %>" class="top-comments-panel hidden" data-shown="0" data-page="20">
                             <% 
                             function renderComment(c, depth) {
                                 var isLiked = likedByMe(c.likes, currentUserId);
+                                var isDisliked = likedByMe(c.dislikes, currentUserId);
                                 var likeCount = (c.likes && c.likes.length) ? c.likes.length : 0;
                                 var replies = childCount(post.comments, c._id);
+                                var isOwner = c.user && c.user._id.toString() === currentUserId.toString();
+                                var uname = c.user && c.user.username ? c.user.username : 'unknown';
                             %>
-                                <div class="comment comment-item hidden mb-4 <%= depth > 0 ? 'pl-4 border-l border-zinc-700' : '' %>" style="margin-left: <%= depth * 8 %>px">
+                                <div class="comment comment-item hidden mb-5 group" style="margin-left: <%= depth * 48 %>px">
                                     <div class="flex gap-3">
-                                        <div class="w-8 h-8 rounded-full bg-zinc-700 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-zinc-300">
-                                            <%= (c.user && c.user.username ? c.user.username.charAt(0) : '?').toUpperCase() %>
+                                        <div class="w-10 h-10 rounded-full bg-[#606060] flex-shrink-0 flex items-center justify-center text-sm font-semibold">
+                                            <%= uname.charAt(0).toUpperCase() %>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <div class="flex flex-wrap items-baseline gap-2">
-                                                <span class="font-semibold text-sm">@<%= c.user && c.user.username ? c.user.username : 'unknown' %></span>
-                                                <span class="text-xs text-zinc-500"><%= timeAgo(c.date) %></span>
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="flex flex-wrap items-baseline gap-2">
+                                                    <span class="font-medium text-sm">@<%= uname %></span>
+                                                    <span class="text-xs text-[#aaa]"><%= timeAgo(c.date) %></span>
+                                                </div>
+                                                <div class="relative flex-shrink-0">
+                                                    <button type="button" class="yt-dots w-8 h-8 rounded-full hover:bg-[#272727] flex items-center justify-center text-[#f1f1f1]" data-menu="menu-<%= c._id %>" aria-label="More actions">
+                                                        <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M12 16.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm0-6c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm0-6c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z"/></svg>
+                                                    </button>
+                                                    <div id="menu-<%= c._id %>" class="yt-menu absolute right-0 top-8 z-20 w-44 bg-[#282828] rounded-xl shadow-xl py-2 border border-[#3f3f3f]">
+                                                        <% if (isOwner) { %>
+                                                            <button type="button" class="edit-comment-btn w-full text-left px-4 py-2.5 text-sm hover:bg-[#3f3f3f] flex items-center gap-3" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">
+                                                                <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M14.06 7.6l2.34 2.34L7.5 18.84H5.16v-2.34L14.06 7.6zm3.48-3.48a.996.996 0 0 0-1.41 0l-1.83 1.83 2.34 2.34 1.83-1.83c.39-.39.39-1.02 0-1.41l-.93-.93z"/></svg>
+                                                                Edit
+                                                            </button>
+                                                            <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post">
+                                                                <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-[#3f3f3f] flex items-center gap-3" onclick="return confirm('Delete this comment?');">
+                                                                    <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                                                    Delete
+                                                                </button>
+                                                            </form>
+                                                        <% } else { %>
+                                                            <button type="button" class="report-comment-btn w-full text-left px-4 py-2.5 text-sm hover:bg-[#3f3f3f] flex items-center gap-3">
+                                                                <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+                                                                Report
+                                                            </button>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <p class="text-sm text-zinc-200 mt-0.5 leading-relaxed"><%= c.content %></p>
-                                            <div class="flex flex-wrap items-center gap-4 mt-2 text-xs text-zinc-400">
-                                                <a href="/comment/<%= post._id %>/like/<%= c._id %>" class="inline-flex items-center gap-1.5 hover:text-white <%= isLiked ? 'text-blue-400' : '' %>">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="<%= isLiked ? 'currentColor' : 'none' %>" stroke="currentColor" class="w-4 h-4" stroke-width="1.8">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.507 4.507 0 0 0 .612-1.54c.2-.99.902-1.765 1.94-1.765h.012A2.25 2.25 0 0 1 18 4.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-4.545a2.25 2.25 0 0 0-1.98 1.18l-.426.852A1.125 1.125 0 0 1 7.702 17.5H5.25a2.25 2.25 0 0 1-2.25-2.25v-3.5a2.25 2.25 0 0 1 2.25-2.25h1.383Z" />
+                                            <p class="text-sm mt-1 leading-relaxed whitespace-pre-wrap"><%= c.content %></p>
+                                            <div class="flex flex-wrap items-center gap-1 mt-1.5 text-xs text-[#aaa]">
+                                                <a href="/comment/<%= post._id %>/like/<%= c._id %>" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-[#272727] <%= isLiked ? 'text-white' : '' %>" title="Like">
+                                                    <svg viewBox="0 0 24 24" class="w-[18px] h-[18px] <%= isLiked ? 'fill-current' : 'fill-none stroke-current' %>" stroke-width="1.6">
+                                                        <path d="M18.77,11h-4.23l1.52-4.94C16.38,5.03,15.55,4,14.63,4c-0.41,0-0.81,0.2-1.07,0.53L7,11H3v10h4h1h9.43 c1.06,0,1.98-0.67,2.19-1.61l1.34-6C21.23,12.15,20.18,11,18.77,11z M7,20H4v-8h3V20z M20.98,13.17l-1.34,6 C19.54,19.65,19.03,20,18.43,20H8v-8.61l5.6-6.06C13.61,5.16,13.64,5.14,14.63,5.14c0.21,0,0.4,0.17,0.4,0.37 c0,0.05-0.01,0.1-0.02,0.14L13.18,11h5.59c0.53,0,0.98,0.45,0.98,0.98C19.75,12.1,19.77,12.64,20.98,13.17z"/>
                                                     </svg>
                                                     <% if (likeCount > 0) { %><span><%= likeCount %></span><% } %>
                                                 </a>
-                                                <button type="button" class="font-medium uppercase tracking-wide hover:text-white reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
-                                                <% if (c.user && c.user._id.toString() === currentUserId.toString()) { %>
-                                                    <button type="button" class="edit-comment-btn hover:text-yellow-400" data-post-id="<%= post._id %>" data-comment-id="<%= c._id %>">Edit</button>
-                                                    <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
-                                                        <button type="submit" class="hover:text-red-400">Delete</button>
-                                                    </form>
-                                                <% } else if (post.user && post.user._id.toString() === currentUserId.toString()) { %>
-                                                    <form action="/comment/<%= post._id %>/delete/<%= c._id %>" method="post" class="inline">
-                                                        <button type="submit" class="hover:text-red-400">Delete</button>
-                                                    </form>
-                                                <% } %>
+                                                <a href="/comment/<%= post._id %>/dislike/<%= c._id %>" class="inline-flex items-center px-2 py-1 rounded-full hover:bg-[#272727] <%= isDisliked ? 'text-white' : '' %>" title="Dislike">
+                                                    <svg viewBox="0 0 24 24" class="w-[18px] h-[18px] rotate-180 <%= isDisliked ? 'fill-current' : 'fill-none stroke-current' %>" stroke-width="1.6">
+                                                        <path d="M18.77,11h-4.23l1.52-4.94C16.38,5.03,15.55,4,14.63,4c-0.41,0-0.81,0.2-1.07,0.53L7,11H3v10h4h1h9.43 c1.06,0,1.98-0.67,2.19-1.61l1.34-6C21.23,12.15,20.18,11,18.77,11z M7,20H4v-8h3V20z M20.98,13.17l-1.34,6 C19.54,19.65,19.03,20,18.43,20H8v-8.61l5.6-6.06C13.61,5.16,13.64,5.14,14.63,5.14c0.21,0,0.4,0.17,0.4,0.37 c0,0.05-0.01,0.1-0.02,0.14L13.18,11h5.59c0.53,0,0.98,0.45,0.98,0.98C19.75,12.1,19.77,12.64,20.98,13.17z"/>
+                                                    </svg>
+                                                </a>
+                                                <button type="button" class="px-3 py-1 rounded-full font-medium uppercase tracking-wide hover:bg-[#272727] reply-toggle" data-target="reply-<%= c._id %>">Reply</button>
                                             </div>
                                             <div class="add-comment hidden mt-3" id="reply-<%= c._id %>">
-                                                <form action="/comment/<%= post._id %>" method="post" class="flex gap-2">
+                                                <form action="/comment/<%= post._id %>" method="post" class="flex gap-3">
                                                     <input type="hidden" name="parent" value="<%= c._id %>" />
-                                                    <input name="content" placeholder="Add a reply..." class="flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm outline-none" required />
-                                                    <button type="submit" class="px-3 py-2 bg-blue-600 rounded-full text-sm">Reply</button>
+                                                    <input name="content" placeholder="Add a reply..." class="flex-1 bg-transparent border-b border-[#717171] pb-1 text-sm outline-none focus:border-white" required />
+                                                    <button type="submit" class="px-3 py-1.5 bg-[#3ea6ff] text-black rounded-full text-sm font-medium">Reply</button>
                                                 </form>
                                             </div>
 
                                             <% if (replies > 0) { %>
                                             <button type="button"
-                                                class="view-replies mt-3 text-sm font-medium text-blue-400 hover:text-blue-300"
+                                                class="view-replies mt-2 flex items-center gap-2 text-sm font-medium text-[#3ea6ff] hover:bg-[#263850] rounded-full px-3 py-1.5"
                                                 data-panel="replies-<%= c._id %>"
                                                 data-count="<%= replies %>">
-                                                View <%= replies %> <%= replies === 1 ? 'reply' : 'replies' %>
+                                                <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M18 9.28l-6.35 6.35-6.37-6.35.72-.71 5.64 5.65 5.65-5.65z"/></svg>
+                                                <%= replies %> <%= replies === 1 ? 'reply' : 'replies' %>
                                             </button>
-                                            <div id="replies-<%= c._id %>" class="replies-panel hidden mt-3" data-shown="0" data-page="20">
+                                            <div id="replies-<%= c._id %>" class="replies-panel hidden mt-2" data-shown="0" data-page="20">
                                                 <% 
                                                 (post.comments || []).forEach(function(child) {
                                                     var cp = child.parent ? child.parent.toString() : null;
@@ -129,7 +166,7 @@
                                                     renderComment(child, depth + 1);
                                                 });
                                                 %>
-                                                <button type="button" class="load-more-replies hidden mt-2 text-sm font-medium text-zinc-300 hover:text-white" data-panel="replies-<%= c._id %>">
+                                                <button type="button" class="load-more-replies hidden mt-2 text-sm font-medium text-[#3ea6ff] hover:text-[#65b8ff]" data-panel="replies-<%= c._id %>">
                                                     Load more replies
                                                 </button>
                                             </div>
@@ -145,7 +182,7 @@
                                 renderComment(c, 0);
                             });
                             %>
-                            <button type="button" class="load-more-comments hidden mt-2 text-sm font-medium text-zinc-300 hover:text-white" data-panel="top-<%= post._id %>">
+                            <button type="button" class="load-more-comments hidden mt-2 text-sm font-medium text-[#3ea6ff] hover:text-[#65b8ff]" data-panel="top-<%= post._id %>">
                                 Load more comments
                             </button>
                         </div>
@@ -165,7 +202,6 @@
             const next = Math.min(shown + page, items.length);
             for (let i = shown; i < next; i++) items[i].classList.remove('hidden');
             panel.dataset.shown = String(next);
-
             const loadBtn = panel.querySelector(':scope > .load-more-comments, :scope > .load-more-replies');
             if (loadBtn) {
                 if (next < items.length) loadBtn.classList.remove('hidden');
@@ -177,24 +213,16 @@
             btn.addEventListener('click', () => {
                 const panel = document.getElementById(btn.getAttribute('data-panel'));
                 if (!panel) return;
-
+                const count = btn.getAttribute('data-count');
                 if (panel.classList.contains('hidden')) {
                     panel.classList.remove('hidden');
                     if (parseInt(panel.dataset.shown || '0', 10) === 0) revealBatch(panel);
-                    const count = btn.getAttribute('data-count');
-                    if (btn.classList.contains('show-top-comments')) {
-                        btn.textContent = 'Hide comments';
-                    } else {
-                        btn.textContent = 'Hide replies';
-                    }
+                    if (btn.classList.contains('show-top-comments')) btn.textContent = 'Hide comments';
+                    else btn.innerHTML = '<svg viewBox="0 0 24 24" class="w-4 h-4 fill-current inline"><path d="M18 15.72l-6.35-6.35-6.37 6.35-.72-.71 7.07-7.07 7.09 7.07z"/></svg> Hide ' + count + ' ' + (count === '1' ? 'reply' : 'replies');
                 } else {
                     panel.classList.add('hidden');
-                    const count = btn.getAttribute('data-count');
-                    if (btn.classList.contains('show-top-comments')) {
-                        btn.textContent = `View ${count} comment${count === '1' ? '' : 's'}`;
-                    } else {
-                        btn.textContent = `View ${count} ${count === '1' ? 'reply' : 'replies'}`;
-                    }
+                    if (btn.classList.contains('show-top-comments')) btn.textContent = count + ' Comment' + (count === '1' ? '' : 's');
+                    else btn.innerHTML = '<svg viewBox="0 0 24 24" class="w-4 h-4 fill-current inline"><path d="M18 9.28l-6.35 6.35-6.37-6.35.72-.71 5.64 5.65 5.65-5.65z"/></svg> ' + count + ' ' + (count === '1' ? 'reply' : 'replies');
                 }
             });
         });
@@ -213,35 +241,56 @@
             });
         });
 
+        document.querySelectorAll('.yt-dots').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-menu');
+                const menu = document.getElementById(id);
+                document.querySelectorAll('.yt-menu.open').forEach(m => {
+                    if (m !== menu) m.classList.remove('open');
+                });
+                if (menu) menu.classList.toggle('open');
+            });
+        });
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.yt-menu.open').forEach(m => m.classList.remove('open'));
+        });
+
+        document.querySelectorAll('.report-comment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                alert('Thanks for reporting. We will review this comment.');
+                btn.closest('.yt-menu')?.classList.remove('open');
+            });
+        });
+
         document.querySelectorAll('.edit-comment-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const postId = btn.getAttribute('data-post-id');
                 const commentId = btn.getAttribute('data-comment-id');
                 const commentEl = btn.closest('.comment');
+                btn.closest('.yt-menu')?.classList.remove('open');
                 if (!commentEl) return;
                 const contentP = commentEl.querySelector('p');
                 const old = contentP ? contentP.textContent : '';
+                if (contentP) contentP.style.display = 'none';
                 const form = document.createElement('form');
                 form.method = 'post';
                 form.action = `/comment/${postId}/edit/${commentId}`;
-                form.className = 'flex gap-2 mt-2';
-                const input = document.createElement('input');
-                input.name = 'content';
-                input.value = old;
-                input.className = 'flex-1 px-3 py-2 rounded-full bg-zinc-800 border border-zinc-700 text-sm';
-                const save = document.createElement('button');
-                save.type = 'submit';
-                save.className = 'px-3 py-2 bg-green-600 rounded-full text-sm';
-                save.textContent = 'Save';
-                const cancel = document.createElement('button');
-                cancel.type = 'button';
-                cancel.className = 'px-3 py-2 bg-zinc-700 rounded-full text-sm';
-                cancel.textContent = 'Cancel';
-                cancel.addEventListener('click', () => form.remove());
-                form.appendChild(input);
-                form.appendChild(save);
-                form.appendChild(cancel);
-                commentEl.querySelector('.flex-1').appendChild(form);
+                form.className = 'mt-2';
+                form.innerHTML = `
+                    <input name="content" value="${old.replace(/"/g, '&quot;')}" class="w-full bg-transparent border-b border-[#717171] pb-1 text-sm outline-none focus:border-white" />
+                    <div class="flex justify-end gap-2 mt-2">
+                        <button type="button" class="cancel-edit px-3 py-1.5 text-sm rounded-full hover:bg-[#272727]">Cancel</button>
+                        <button type="submit" class="px-3 py-1.5 bg-[#3ea6ff] text-black rounded-full text-sm font-medium">Save</button>
+                    </div>`;
+                form.querySelector('.cancel-edit').addEventListener('click', () => {
+                    form.remove();
+                    if (contentP) contentP.style.display = '';
+                });
+                commentEl.querySelector('.flex-1').insertBefore(form, contentP.nextSibling);
             });
         });
     </script>

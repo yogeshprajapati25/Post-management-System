@@ -94,12 +94,38 @@ async function toggleCommentLike(postId, commentId, userId) {
     if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
 
     if (!comment.likes) comment.likes = [];
-    const idx = comment.likes.findIndex(id => id.toString() === userId.toString());
-    if (idx === -1) comment.likes.push(userId);
-    else comment.likes.splice(idx, 1);
+    if (!comment.dislikes) comment.dislikes = [];
+
+    const likeIdx = comment.likes.findIndex(id => id.toString() === userId.toString());
+    const dislikeIdx = comment.dislikes.findIndex(id => id.toString() === userId.toString());
+    if (dislikeIdx !== -1) comment.dislikes.splice(dislikeIdx, 1);
+
+    if (likeIdx === -1) comment.likes.push(userId);
+    else comment.likes.splice(likeIdx, 1);
 
     await post.save();
-    return { ok: true, likes: comment.likes.length };
+    return { ok: true };
+}
+
+async function toggleCommentDislike(postId, commentId, userId) {
+    let post = await postModel.findOne({ _id: postId });
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    const comment = post.comments.id(commentId);
+    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+
+    if (!comment.likes) comment.likes = [];
+    if (!comment.dislikes) comment.dislikes = [];
+
+    const dislikeIdx = comment.dislikes.findIndex(id => id.toString() === userId.toString());
+    const likeIdx = comment.likes.findIndex(id => id.toString() === userId.toString());
+    if (likeIdx !== -1) comment.likes.splice(likeIdx, 1);
+
+    if (dislikeIdx === -1) comment.dislikes.push(userId);
+    else comment.dislikes.splice(dislikeIdx, 1);
+
+    await post.save();
+    return { ok: true };
 }
 
 async function updatePostContent(id, content) {
@@ -139,4 +165,5 @@ module.exports = {
     deleteComment,
     editComment,
     toggleCommentLike,
+    toggleCommentDislike,
 };

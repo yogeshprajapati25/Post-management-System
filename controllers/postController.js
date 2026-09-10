@@ -47,6 +47,13 @@ async function toggleCommentLike(req, res) {
     res.redirect('/feed');
 }
 
+// Dislike / undislike a comment
+async function toggleCommentDislike(req, res) {
+    const { postId, commentId } = req.params;
+    await postService.toggleCommentDislike(postId, commentId, req.user.userid);
+    res.redirect('/feed');
+}
+
 // Like / unlike a post
 async function toggleLike(req, res) {
     await postService.toggleLike(req.params.id, req.user.userid);
@@ -91,5 +98,6 @@ module.exports = {
     postDeleteComment,
     postEditComment,
     toggleCommentLike,
+    toggleCommentDislike,
 };
 
