@@ -1,95 +1,164 @@
+const path = require('path');
+const multer = require('multer');
 const postService = require("../services/postService");
 
-// Show current user's profile and posts
+const storage = multer.diskStorage({
+    destination: path.join(__dirname, '../public/uploads'),
+    filename: (req, file, cb) => {
+        const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, Date.now() + '-' + safe);
+    }
+});
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (/^image\//.test(file.mimetype)) cb(null, true);
+        else cb(new Error('Only images allowed'));
+    }
+});
+
+function wantsJson(req) {
+    return req.query.ajax === '1' || (req.headers.accept || '').includes('application/json');
+}
+
 async function getProfile(req, res) {
-    let user = await postService.getProfileByEmail(req.user.email);
-    res.render("profile", { user });
+    const user = await postService.getProfileByEmail(req.user.email);
+    res.render("profile", { user, me: user, currentUserId: req.user.userid, activePage: 'profile' });
 }
 
-// Show all posts from all users
 async function getFeed(req, res) {
-    let posts = await postService.getAllPosts();
-    res.render("feed", { posts, currentUserId: req.user.userid });
+    const me = await postService.getProfileByEmail(req.user.email);
+    const { posts, hasMore, nextCursor } = await postService.getAllPosts(postService.PAGE_SIZE);
+    res.render("feed", {
+        posts,
+        hasMore,
+        nextCursor,
+        me,
+        currentUserId: req.user.userid,
+        activePage: 'feed'
+    });
 }
 
-// Add a comment to a post (or reply if parent is set)
+async function getMorePosts(req, res) {
+    const before = req.query.before || null;
+    const { posts, hasMore, nextCursor } = await postService.getAllPosts(postService.PAGE_SIZE, before);
+    res.render("partials/post-cards", {
+        posts,
+        currentUserId: req.user.userid,
+        layout: false
+    }, (err, html) => {
+        if (err) return res.status(500).json({ ok: false });
+        res.json({ ok: true, html, hasMore, nextCursor });
+    });
+}
+
 async function postComment(req, res) {
     const postId = req.params.id;
     const content = req.body.content;
     const parent = req.body.parent || null;
     try {
-        await postService.addComment(postId, req.user.userid, content, parent);
+        const comment = await postService.addComment(postId, req.user.userid, content, parent);
+        if (wantsJson(req)) {
+            return res.json({
+                ok: true,
+                comment: {
+                    _id: comment._id,
+                    content: comment.content,
+                    parent: comment.parent,
+                    date: comment.date,
+                    user: comment.user,
+                    likes: [],
+                    dislikes: []
+                }
+            });
+        }
     } catch (err) {
-        // ignore for now
+        if (wantsJson(req)) return res.status(400).json({ ok: false, error: err.message });
     }
     res.redirect('/feed');
 }
 
-// Delete a comment (allowed for comment owner or post owner)
 async function postDeleteComment(req, res) {
     const { postId, commentId } = req.params;
-    await postService.deleteComment(postId, commentId, req.user.userid);
+    const result = await postService.deleteComment(postId, commentId, req.user.userid);
+    if (wantsJson(req)) return res.json(result);
     res.redirect('/feed');
 }
 
-// Edit a comment (only comment owner)
 async function postEditComment(req, res) {
     const { postId, commentId } = req.params;
     const { content } = req.body;
-    await postService.editComment(postId, commentId, req.user.userid, content);
+    const result = await postService.editComment(postId, commentId, req.user.userid, content);
+    if (wantsJson(req)) return res.json(result);
     res.redirect('/feed');
 }
 
-// Like / unlike a comment
 async function toggleCommentLike(req, res) {
     const { postId, commentId } = req.params;
-    await postService.toggleCommentLike(postId, commentId, req.user.userid);
+    const state = await postService.toggleCommentLike(postId, commentId, req.user.userid);
+    if (!state) {
+        if (wantsJson(req)) return res.status(404).json({ ok: false });
+        return res.redirect('/feed');
+    }
+    if (wantsJson(req)) return res.json({ ok: true, ...state });
     res.redirect('/feed');
 }
 
-// Dislike / undislike a comment
 async function toggleCommentDislike(req, res) {
     const { postId, commentId } = req.params;
-    await postService.toggleCommentDislike(postId, commentId, req.user.userid);
+    const state = await postService.toggleCommentDislike(postId, commentId, req.user.userid);
+    if (!state) {
+        if (wantsJson(req)) return res.status(404).json({ ok: false });
+        return res.redirect('/feed');
+    }
+    if (wantsJson(req)) return res.json({ ok: true, ...state });
     res.redirect('/feed');
 }
 
-// Like / unlike a post
 async function toggleLike(req, res) {
-    await postService.toggleLike(req.params.id, req.user.userid);
+    const state = await postService.toggleLike(req.params.id, req.user.userid);
+    if (wantsJson(req)) return res.json({ ok: !!state, ...state });
     if (req.query.from === "feed") res.redirect("/feed");
     else res.redirect("/profile");
 }
 
-// Show edit page for a post
-async function getEdit(req, res) {
-    let post = await postService.getPostById(req.params.id);
-    res.render("edit", { post });
+async function toggleDislike(req, res) {
+    const state = await postService.toggleDislike(req.params.id, req.user.userid);
+    if (wantsJson(req)) return res.json({ ok: !!state, ...state });
+    if (req.query.from === "feed") res.redirect("/feed");
+    else res.redirect("/profile");
 }
 
-// Update a post's content
+async function getEdit(req, res) {
+    const post = await postService.getPostById(req.params.id);
+    res.render("edit", { post, activePage: 'profile', currentUserId: req.user.userid });
+}
+
 async function postUpdate(req, res) {
     await postService.updatePostContent(req.params.id, req.body.content);
     res.redirect("/profile");
 }
 
-// Delete a post
 async function postDelete(req, res) {
-    const result = await postService.deletePost(req.params.id, req.user.userid);
+    await postService.deletePost(req.params.id, req.user.userid);
     return res.redirect("/profile");
 }
 
-// Create a new post
 async function postCreate(req, res) {
-    let { content } = req.body;
-    await postService.createPost(req.user.email, content);
+    const content = req.body.content;
+    const image = req.file ? '/uploads/' + req.file.filename : null;
+    await postService.createPost(req.user.email, content, image);
     res.redirect("/profile");
 }
 
 module.exports = {
+    upload,
     getProfile,
     getFeed,
+    getMorePosts,
     toggleLike,
+    toggleDislike,
     getEdit,
     postUpdate,
     postDelete,
@@ -100,4 +169,3 @@ module.exports = {
     toggleCommentLike,
     toggleCommentDislike,
 };
-

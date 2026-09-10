@@ -1,0 +1,27 @@
+<% 
+  var navUser = typeof me !== 'undefined' && me ? me : (typeof user !== 'undefined' ? user : null);
+  var active = typeof activePage !== 'undefined' ? activePage : '';
+  var initial = navUser && navUser.username ? navUser.username.charAt(0).toUpperCase() : 'P';
+%>
+<header class="sticky top-0 z-40 border-b border-[#272727] bg-[#0f0f0f]/90 backdrop-blur">
+  <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+    <a href="<%= navUser ? '/feed' : '/' %>" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+      <span class="w-8 h-8 rounded-full bg-[#3ea6ff] text-black flex items-center justify-center text-sm">P</span>
+      PostHub
+    </a>
+    <% if (navUser) { %>
+    <nav class="flex items-center gap-1 text-sm">
+      <a href="/feed" class="px-3 py-1.5 rounded-full <%= active === 'feed' ? 'bg-[#272727] text-white' : 'text-[#aaa] hover:bg-[#272727] hover:text-white' %>">Feed</a>
+      <a href="/profile" class="px-3 py-1.5 rounded-full <%= active === 'profile' ? 'bg-[#272727] text-white' : 'text-[#aaa] hover:bg-[#272727] hover:text-white' %>">Profile</a>
+      <a href="/logout" class="px-3 py-1.5 rounded-full text-[#aaa] hover:bg-[#272727] hover:text-white">Logout</a>
+      <div class="ml-2 w-8 h-8 rounded-full bg-[#3ea6ff] text-black flex items-center justify-center text-sm font-semibold" title="@<%= navUser.username %>"><%= initial %></div>
+    </nav>
+    <% } else { %>
+    <nav class="flex items-center gap-2 text-sm">
+      <a href="/login" class="px-4 py-1.5 rounded-full text-[#aaa] hover:bg-[#272727]">Login</a>
+      <a href="/signup" class="px-4 py-1.5 rounded-full bg-[#3ea6ff] text-black font-medium">Sign Up</a>
+    </nav>
+    <% } %>
+  </div>
+</header>
+<div id="toast-root" class="fixed top-16 right-4 z-50 flex flex-col gap-2"></div>

@@ -1,35 +1,85 @@
 const userModel = require("../models/user");
 const postModel = require("../models/post");
 
-async function getProfileByEmail(email) {
-    let user = await userModel.findOne({ email: email }).populate("posts");
-    return user;
+const PAGE_SIZE = 10;
+
+function reactionState(doc, userId) {
+    const likes = doc.likes || [];
+    const dislikes = doc.dislikes || [];
+    const uid = userId.toString();
+    return {
+        likes: likes.length,
+        dislikes: dislikes.length,
+        liked: likes.some(id => id.toString() === uid),
+        disliked: dislikes.some(id => id.toString() === uid),
+    };
 }
 
-async function getAllPosts() {
-    let posts = await postModel.find({}).populate("user").populate('comments.user').sort({ date: -1 });
-    return posts;
+function toggleReaction(likes, dislikes, userId, type) {
+    if (!likes) likes = [];
+    if (!dislikes) dislikes = [];
+    const uid = userId.toString();
+    const likeIdx = likes.findIndex(id => id.toString() === uid);
+    const dislikeIdx = dislikes.findIndex(id => id.toString() === uid);
+
+    if (type === 'like') {
+        if (dislikeIdx !== -1) dislikes.splice(dislikeIdx, 1);
+        if (likeIdx === -1) likes.push(userId);
+        else likes.splice(likeIdx, 1);
+    } else {
+        if (likeIdx !== -1) likes.splice(likeIdx, 1);
+        if (dislikeIdx === -1) dislikes.push(userId);
+        else dislikes.splice(dislikeIdx, 1);
+    }
+    return { likes, dislikes };
+}
+
+async function getProfileByEmail(email) {
+    return await userModel.findOne({ email }).populate("posts");
+}
+
+async function getAllPosts(limit = PAGE_SIZE, before = null) {
+    const query = before ? { date: { $lt: new Date(before) } } : {};
+    const posts = await postModel.find(query)
+        .populate("user")
+        .populate('comments.user')
+        .sort({ date: -1 })
+        .limit(limit + 1);
+
+    const hasMore = posts.length > limit;
+    const items = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore && items.length ? items[items.length - 1].date.toISOString() : null;
+    return { posts: items, hasMore, nextCursor };
 }
 
 async function toggleLike(postId, userId) {
-    let post = await postModel.findOne({ _id: postId }).populate("user");
-
-    if (post.likes.indexOf(userId) === -1) {
-        post.likes.push(userId);
-    } else {
-        post.likes.splice(post.likes.indexOf(userId), 1);
-    }
-
+    const post = await postModel.findById(postId);
+    if (!post) return null;
+    if (!post.dislikes) post.dislikes = [];
+    const r = toggleReaction(post.likes, post.dislikes, userId, 'like');
+    post.likes = r.likes;
+    post.dislikes = r.dislikes;
     await post.save();
-    return post;
+    return reactionState(post, userId);
+}
+
+async function toggleDislike(postId, userId) {
+    const post = await postModel.findById(postId);
+    if (!post) return null;
+    if (!post.dislikes) post.dislikes = [];
+    const r = toggleReaction(post.likes, post.dislikes, userId, 'dislike');
+    post.likes = r.likes;
+    post.dislikes = r.dislikes;
+    await post.save();
+    return reactionState(post, userId);
 }
 
 async function getPostById(id) {
-    return await postModel.findOne({ _id: id }).populate("user").populate('comments.user');
+    return await postModel.findById(id).populate("user").populate('comments.user');
 }
 
 async function addComment(postId, userId, content, parentId = null) {
-    let post = await postModel.findOne({ _id: postId });
+    const post = await postModel.findById(postId);
     if (!post) throw new Error('POST_NOT_FOUND');
 
     if (parentId) {
@@ -37,13 +87,21 @@ async function addComment(postId, userId, content, parentId = null) {
         if (!parent) throw new Error('PARENT_NOT_FOUND');
     }
 
-    post.comments.push({ user: userId, content, parent: parentId || null });
+    post.comments.push({
+        user: userId,
+        content,
+        parent: parentId || null,
+        likes: [],
+        dislikes: []
+    });
     await post.save();
-    return await post.populate('comments.user');
+    await post.populate('comments.user');
+    const created = post.comments[post.comments.length - 1];
+    return created;
 }
 
 async function deleteComment(postId, commentId, requesterId) {
-    let post = await postModel.findOne({ _id: postId }).populate('comments.user');
+    const post = await postModel.findById(postId).populate('comments.user');
     if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
 
     const comment = post.comments.id(commentId);
@@ -51,10 +109,8 @@ async function deleteComment(postId, commentId, requesterId) {
 
     const isCommentOwner = comment.user && comment.user._id.toString() === requesterId.toString();
     const isPostOwner = post.user && post.user.toString() === requesterId.toString();
-
     if (!isCommentOwner && !isPostOwner) return { ok: false, reason: 'NOT_ALLOWED' };
 
-    // Collect this comment + all nested descendants, then remove
     const toRemove = new Set([commentId.toString()]);
     let changed = true;
     while (changed) {
@@ -72,7 +128,7 @@ async function deleteComment(postId, commentId, requesterId) {
 }
 
 async function editComment(postId, commentId, requesterId, newContent) {
-    let post = await postModel.findOne({ _id: postId }).populate('comments.user');
+    const post = await postModel.findById(postId).populate('comments.user');
     if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
 
     const comment = post.comments.id(commentId);
@@ -87,76 +143,69 @@ async function editComment(postId, commentId, requesterId, newContent) {
 }
 
 async function toggleCommentLike(postId, commentId, userId) {
-    let post = await postModel.findOne({ _id: postId });
-    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+    const post = await postModel.findById(postId);
+    if (!post) return null;
 
     const comment = post.comments.id(commentId);
-    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+    if (!comment) return null;
 
     if (!comment.likes) comment.likes = [];
     if (!comment.dislikes) comment.dislikes = [];
 
-    const likeIdx = comment.likes.findIndex(id => id.toString() === userId.toString());
-    const dislikeIdx = comment.dislikes.findIndex(id => id.toString() === userId.toString());
-    if (dislikeIdx !== -1) comment.dislikes.splice(dislikeIdx, 1);
-
-    if (likeIdx === -1) comment.likes.push(userId);
-    else comment.likes.splice(likeIdx, 1);
-
+    const r = toggleReaction(comment.likes, comment.dislikes, userId, 'like');
+    comment.likes = r.likes;
+    comment.dislikes = r.dislikes;
     await post.save();
-    return { ok: true };
+    return reactionState(comment, userId);
 }
 
 async function toggleCommentDislike(postId, commentId, userId) {
-    let post = await postModel.findOne({ _id: postId });
-    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+    const post = await postModel.findById(postId);
+    if (!post) return null;
 
     const comment = post.comments.id(commentId);
-    if (!comment) return { ok: false, reason: 'COMMENT_NOT_FOUND' };
+    if (!comment) return null;
 
     if (!comment.likes) comment.likes = [];
     if (!comment.dislikes) comment.dislikes = [];
 
-    const dislikeIdx = comment.dislikes.findIndex(id => id.toString() === userId.toString());
-    const likeIdx = comment.likes.findIndex(id => id.toString() === userId.toString());
-    if (likeIdx !== -1) comment.likes.splice(likeIdx, 1);
-
-    if (dislikeIdx === -1) comment.dislikes.push(userId);
-    else comment.dislikes.splice(dislikeIdx, 1);
-
+    const r = toggleReaction(comment.likes, comment.dislikes, userId, 'dislike');
+    comment.likes = r.likes;
+    comment.dislikes = r.dislikes;
     await post.save();
-    return { ok: true };
+    return reactionState(comment, userId);
 }
 
 async function updatePostContent(id, content) {
-    return await postModel.findOneAndUpdate({ _id: id }, { content: content });
+    return await postModel.findOneAndUpdate({ _id: id }, { content }, { new: true });
 }
 
 async function deletePost(id, userId) {
-    let post = await postModel.findOne({ _id: id });
+    const post = await postModel.findById(id);
     if (!post) return { ok: false, reason: "NOT_FOUND" };
     if (post.user.toString() !== userId.toString()) return { ok: false, reason: "NOT_OWNER" };
 
     await postModel.findByIdAndDelete(id);
-    let user = await userModel.findOne({ _id: post.user });
+    const user = await userModel.findById(post.user);
     user.posts = user.posts.filter(pid => pid.toString() !== id.toString());
     await user.save();
     return { ok: true };
 }
 
-async function createPost(userEmail, content) {
-    let user = await userModel.findOne({ email: userEmail });
-    let post = await postModel.create({ user: user._id, content });
-
+async function createPost(userEmail, content, image = null) {
+    const user = await userModel.findOne({ email: userEmail });
+    const post = await postModel.create({ user: user._id, content, image, likes: [], dislikes: [] });
     user.posts.push(post._id);
     await user.save();
     return post;
 }
 
 module.exports = {
+    PAGE_SIZE,
     getProfileByEmail,
     getAllPosts,
     toggleLike,
+    toggleDislike,
     getPostById,
     updatePostContent,
     deletePost,

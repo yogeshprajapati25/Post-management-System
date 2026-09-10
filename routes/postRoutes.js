@@ -5,12 +5,14 @@ const { isLoggedIn } = require("../middleware/auth");
 
 router.get("/profile", isLoggedIn, postController.getProfile);
 router.get("/feed", isLoggedIn, postController.getFeed);
+router.get("/api/posts", isLoggedIn, postController.getMorePosts);
 router.get("/like/:id", isLoggedIn, postController.toggleLike);
+router.get("/dislike/:id", isLoggedIn, postController.toggleDislike);
 router.get("/edit/:id", isLoggedIn, postController.getEdit);
 router.post("/update/:id", isLoggedIn, postController.postUpdate);
 router.post("/delete/:id", isLoggedIn, postController.postDelete);
-router.post("/post", isLoggedIn, postController.postCreate);
-// Comments
+router.post("/post", isLoggedIn, postController.upload.single('image'), postController.postCreate);
+
 router.post("/comment/:id", isLoggedIn, postController.postComment);
 router.post("/comment/:postId/delete/:commentId", isLoggedIn, postController.postDeleteComment);
 router.post("/comment/:postId/edit/:commentId", isLoggedIn, postController.postEditComment);
@@ -18,4 +20,3 @@ router.get("/comment/:postId/like/:commentId", isLoggedIn, postController.toggle
 router.get("/comment/:postId/dislike/:commentId", isLoggedIn, postController.toggleCommentDislike);
 
 module.exports = router;
-
