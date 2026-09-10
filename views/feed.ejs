@@ -3,25 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Posts</title>
+    <title>Feed - PostHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .yt-menu { display: none; }
-        .yt-menu.open { display: block; }
-        .comment:hover .yt-dots { opacity: 1; }
-        .yt-dots { opacity: 0; }
-        @media (hover: none) { .yt-dots { opacity: 1; } }
-    </style>
+    <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
-    <div class="w-full min-h-screen bg-[#0f0f0f] text-[#f1f1f1] p-6 md:p-10">
-        <div class="w-full max-w-2xl mx-auto flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold">All Posts</h2>
-            <div class="flex gap-3">
-                <a class="bg-[#272727] rounded-full px-4 py-2 text-sm" href="/profile">Your Posts</a>
-                <a class="bg-red-600 rounded-full px-4 py-2 text-sm" href="/logout">Logout</a>
-            </div>
-        </div>
+<body class="bg-[#0f0f0f] text-[#f1f1f1]">
+    <%- include('partials/nav', { activePage: 'feed' }) %>
 
         <% 
         function timeAgo(d) {
@@ -46,11 +33,11 @@
         }
         %>
 
-        <div class="max-w-2xl mx-auto flex flex-col gap-6">
+        <div class="max-w-2xl mx-auto flex flex-col gap-6 mt-6">
             <% posts.forEach(function(post){
                 var topCount = childCount(post.comments, null);
             %>
-                <div class="post p-5 rounded-xl bg-[#0f0f0f] border border-[#272727]">
+                <div class="post card">
                     <h4 class="text-[#aaa] font-medium mb-1">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></h4>
                     <p class="text-sm tracking-tight mb-2"><%= post.content %></p>
                     <div class="flex gap-4 items-center text-sm text-[#aaa] mb-4">

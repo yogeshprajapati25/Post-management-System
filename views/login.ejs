@@ -3,26 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Login - PostHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
-    <div class="w-full min-h-screen bg-zinc-900 text-white p-10">
-        <h3 class="text-3xl mb-5">Login Your Account</h3>
-        <% if (typeof exists !== 'undefined' && exists) { %>
-            <p class="mb-3 text-amber-400">Account already exists. Please log in.</p>
-        <% } %>
-        <% if (typeof registered !== 'undefined' && registered) { %>
-            <p class="mb-3 text-green-400">Account created. Please log in.</p>
-        <% } %>
-        <form action="/login" method="post">
-            <input class="px-3 py-2 outline-none bg-transparent rounded-md border-2 border-zinc-800" type="email" placeholder="email" name="email" required>
-            <input class="px-3 py-2 outline-none bg-transparent rounded-md border-2 border-zinc-800" type="password" placeholder="password" name="password" required>
-            
-            <input class="px-5 py-2 bg-blue-500 rounded-md" type="submit" value="Login Account">
-            
-            
-        </form>
+<body class="bg-[#0f0f0f] text-white">
+    <%- include('partials/nav') %>
+    
+    <div class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md">
+            <div class="card">
+                <h1 class="text-2xl font-bold mb-1">Welcome back</h1>
+                <p class="text-[#aaa] text-sm mb-6">Login to your account</p>
+                
+                <% if (typeof exists !== 'undefined' && exists) { %>
+                    <div class="mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
+                        Account already exists. Please log in.
+                    </div>
+                <% } %>
+                <% if (typeof registered !== 'undefined' && registered) { %>
+                    <div class="mb-4 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">
+                        Account created! Please log in.
+                    </div>
+                <% } %>
+                
+                <form action="/login" method="post" class="flex flex-col gap-4">
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input id="email" type="email" name="email" placeholder="your@email.com" required autocomplete="email">
+                    </div>
+                    
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary w-full mt-2">Login</button>
+                </form>
+                
+                <p class="mt-6 text-center text-sm text-[#aaa]">
+                    Don't have an account?
+                    <a href="/signup" class="text-[#3ea6ff] hover:underline">Sign up</a>
+                </p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

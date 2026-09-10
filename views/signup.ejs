@@ -3,28 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up</title>
+    <title>Sign Up - PostHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
-    <div class="w-full min-h-screen bg-zinc-900 text-white flex items-center justify-center p-10">
+<body class="bg-[#0f0f0f] text-white">
+    <%- include('partials/nav') %>
+    
+    <div class="min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md">
-            <h3 class="text-3xl mb-5">Create your Account</h3>
-            <form action="/register" method="post" class="flex flex-col gap-3">
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="text" placeholder="Full Name" name="name" required>
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="text" placeholder="Username" name="username" required>
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="email" placeholder="Email" name="email" required>
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="number" placeholder="Age" name="age" required>
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="password" placeholder="Password" name="password" required>
-                <input class="px-3 py-2 outline-none bg-transparent border-2 border-zinc-800 rounded-md" type="password" placeholder="Confirm Password" name="confirmPassword">
-                <input class="px-5 py-2 bg-blue-500 rounded-md cursor-pointer" type="submit" value="Sign Up">
-            </form>
-            <p class="mt-4 text-sm text-zinc-400">
-                Already have an account?
-                <a href="/login" class="text-blue-400 hover:underline">Login</a>
-            </p>
+            <div class="card">
+                <h1 class="text-2xl font-bold mb-1">Join PostHub</h1>
+                <p class="text-[#aaa] text-sm mb-6">Create your account to get started</p>
+                
+                <form action="/register" method="post" class="flex flex-col gap-4" id="signupForm">
+                    <div class="field">
+                        <label for="name">Full Name</label>
+                        <input id="name" type="text" name="name" placeholder="John Doe" required autocomplete="name">
+                    </div>
+                    
+                    <div class="field">
+                        <label for="username">Username</label>
+                        <input id="username" type="text" name="username" placeholder="johndoe" required autocomplete="username">
+                        <p class="hint">Choose a unique username</p>
+                    </div>
+                    
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input id="email" type="email" name="email" placeholder="your@email.com" required autocomplete="email">
+                    </div>
+                    
+                    <div class="field">
+                        <label for="age">Age</label>
+                        <input id="age" type="number" name="age" placeholder="18" min="13" max="120" required>
+                        <p class="hint">Must be 13 or older</p>
+                    </div>
+                    
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" name="password" placeholder="••••••••" minlength="6" required autocomplete="new-password">
+                        <p class="hint" id="pwdHint">At least 6 characters</p>
+                    </div>
+                    
+                    <div class="field">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input id="confirmPassword" type="password" name="confirmPassword" placeholder="••••••••" minlength="6" required autocomplete="new-password">
+                        <p class="hint" id="confirmHint"></p>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary w-full mt-2">Create Account</button>
+                </form>
+                
+                <p class="mt-6 text-center text-sm text-[#aaa]">
+                    Already have an account?
+                    <a href="/login" class="text-[#3ea6ff] hover:underline">Login</a>
+                </p>
+            </div>
         </div>
     </div>
+    
+    <script>
+        const pwd = document.getElementById('password');
+        const confirm = document.getElementById('confirmPassword');
+        const confirmHint = document.getElementById('confirmHint');
+        const form = document.getElementById('signupForm');
+        
+        function validateMatch() {
+            if (confirm.value && pwd.value !== confirm.value) {
+                confirmHint.textContent = 'Passwords do not match';
+                confirmHint.style.color = '#ef4444';
+                return false;
+            } else if (confirm.value) {
+                confirmHint.textContent = 'Passwords match';
+                confirmHint.style.color = '#22c55e';
+                return true;
+            }
+            confirmHint.textContent = '';
+            return true;
+        }
+        
+        confirm.addEventListener('input', validateMatch);
+        pwd.addEventListener('input', validateMatch);
+        
+        form.addEventListener('submit', (e) => {
+            if (!validateMatch() && confirm.value) {
+                e.preventDefault();
+                alert('Passwords must match');
+            }
+        });
+    </script>
 </body>
 </html>
 

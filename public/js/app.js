@@ -268,3 +268,22 @@ window.PostHub = (function () {
 
   return { toast, bindReactions, renderMarkdown, initCommentUI };
 })();
+
+// Skeleton loader utility
+window.PostHub.showSkeletons = function(container, count = 3) {
+  if (!container) return;
+  const html = Array.from({length: count}).map(() => `
+    <div class="card mb-4">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-full skeleton"></div>
+        <div class="flex-1">
+          <div class="h-4 w-24 skeleton mb-2"></div>
+          <div class="h-3 w-16 skeleton"></div>
+        </div>
+      </div>
+      <div class="h-4 w-full skeleton mb-2"></div>
+      <div class="h-4 w-3/4 skeleton"></div>
+    </div>
+  `).join('');
+  container.innerHTML = html;
+};

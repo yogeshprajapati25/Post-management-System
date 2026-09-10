@@ -3,21 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Edit Post - PostHub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
-    <div class="w-full min-h-screen bg-zinc-900 text-white p-10">
-        <div class="w-full flex justify-end">
-            <a class="bg-red-500 rounded-md px-3 py-2 text-sm mb-5 inline-block" href="/logout">Logout</a>
+<body class="bg-[#0f0f0f] text-white">
+    <%- include('partials/nav', { activePage: 'profile' }) %>
+    
+    <div class="max-w-2xl mx-auto p-6 mt-6">
+        <div class="card">
+            <h1 class="text-2xl font-bold mb-6">Edit Post</h1>
+            
+            <form method="post" action="/update/<%= post._id %>">
+                <div class="field mb-6">
+                    <label for="content">Post Content</label>
+                    <textarea id="content" name="content" rows="8" required><%= post.content %></textarea>
+                    <p class="hint">Update your post content</p>
+                </div>
+                
+                <% if (post.image) { %>
+                    <div class="mb-6">
+                        <p class="text-sm text-[#aaa] mb-2">Current image:</p>
+                        <img src="<%= post.image %>" alt="Post image" class="rounded-xl max-h-64 object-cover">
+                    </div>
+                <% } %>
+                
+                <div class="flex gap-3">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <a href="/profile" class="btn-secondary">Cancel</a>
+                </div>
+            </form>
         </div>
-        
-        <h5 class="mb-5">Edit Your Post</h5>
-        <form method="post" action="/update/<%= post._id %>">
-            <textarea placeholder="What's on your mind?" class="w-1/3 p-3 block outline-none resize-none bg-transparent border-2 border-zinc-800 rounded-md" name="content"><%= post.content %></textarea>
-            <input class="px-3 py-2 w-40 block bg-yellow-500 text-black rounded-md mt-2" type="submit" value="Update Post">
-        </form>
-
     </div>
 </body>
 </html>
