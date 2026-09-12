@@ -79,6 +79,22 @@ async function postCreate(req, res) {
     res.redirect("/profile");
 }
 
+// GET /api/users — returns all users except self (for share modal)
+async function getUsers(req, res) {
+    const users = await postService.getAllUsersExcept(req.user.userid);
+    res.json(users);
+}
+
+// POST /share/:postId — share a post with a user
+async function sharePost(req, res) {
+    const result = await postService.sharePost(
+        req.params.postId,
+        req.user.userid,
+        req.body.toUserId
+    );
+    res.json(result);
+}
+
 module.exports = {
     getProfile,
     getFeed,
@@ -91,5 +107,7 @@ module.exports = {
     postDeleteComment,
     postEditComment,
     toggleCommentLike,
+    getUsers,
+    sharePost,
 };
 

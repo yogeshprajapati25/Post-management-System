@@ -51,6 +51,7 @@
                             <%= likedByMe(post.likes, currentUserId) ? 'Unlike' : 'Like' %> · <%= post.likes.length %>
                         </a>
                         <button type="button" class="hover:text-white comment-toggle" data-target="add-<%= post._id %>">Comment</button>
+                        <button type="button" class="text-green-400 hover:text-green-300 share-btn" data-post-id="<%= post._id %>">Share</button>
                     </div>
 
                     <div class="comments border-t border-zinc-800 pt-3">
@@ -244,7 +245,98 @@
                 commentEl.querySelector('.flex-1').appendChild(form);
             });
         });
+
+        // ── Share modal ──────────────────────────────────────────
+        let sharePostId = null;
+        let allUsers = [];
+
+        document.querySelectorAll('.share-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                sharePostId = btn.getAttribute('data-post-id');
+                document.getElementById('share-modal').classList.remove('hidden');
+                document.getElementById('share-status').classList.add('hidden');
+                document.getElementById('user-search').value = '';
+                if (allUsers.length === 0) {
+                    const res = await fetch('/api/users');
+                    allUsers = await res.json();
+                }
+                renderShareUsers(allUsers);
+            });
+        });
+
+        document.getElementById('close-modal').addEventListener('click', () => {
+            document.getElementById('share-modal').classList.add('hidden');
+        });
+
+        document.getElementById('share-modal').addEventListener('click', function(e) {
+            if (e.target === this) this.classList.add('hidden');
+        });
+
+        document.getElementById('user-search').addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            renderShareUsers(allUsers.filter(u =>
+                u.username.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+            ));
+        });
+
+        function renderShareUsers(users) {
+            const list = document.getElementById('user-list');
+            if (users.length === 0) {
+                list.innerHTML = '<p class="text-zinc-400 text-sm">No users found.</p>';
+                return;
+            }
+            list.innerHTML = users.map(u => `
+                <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-700">
+                    <div>
+                        <p class="text-sm font-medium">@${u.username}</p>
+                        <p class="text-xs text-zinc-400">${u.name}</p>
+                    </div>
+                    <button onclick="doShare('${u._id}')"
+                        class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 rounded-full">
+                        Share
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function doShare(toUserId) {
+            const status = document.getElementById('share-status');
+            const res = await fetch(`/share/${sharePostId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ toUserId })
+            });
+            const data = await res.json();
+            status.classList.remove('hidden', 'text-green-400', 'text-red-400');
+            if (data.ok) {
+                status.textContent = 'Post shared successfully!';
+                status.classList.add('text-green-400');
+            } else if (data.reason === 'ALREADY_SHARED') {
+                status.textContent = 'Already shared with this user.';
+                status.classList.add('text-red-400');
+            } else {
+                status.textContent = 'Something went wrong.';
+                status.classList.add('text-red-400');
+            }
+            status.classList.remove('hidden');
+        }
     </script>
+
+    <!-- Share Modal -->
+    <div id="share-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+        <div class="bg-zinc-800 rounded-xl p-6 w-80 max-h-[70vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-white">Share with...</h3>
+                <button id="close-modal" class="text-zinc-400 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <input id="user-search" type="text" placeholder="Search users..."
+                class="mb-3 px-3 py-2 rounded-md bg-zinc-700 text-sm text-white outline-none border border-zinc-600 focus:border-zinc-400">
+            <div id="user-list" class="overflow-y-auto flex-1 flex flex-col gap-2 text-white">
+                <p class="text-zinc-400 text-sm">Loading...</p>
+            </div>
+            <p id="share-status" class="mt-3 text-sm text-center hidden"></p>
+        </div>
+    </div>
     </div>
 </body>
 </html>

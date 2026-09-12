@@ -16,5 +16,8 @@ router.post("/comment/:postId/delete/:commentId", isLoggedIn, postController.pos
 router.post("/comment/:postId/edit/:commentId", isLoggedIn, postController.postEditComment);
 router.get("/comment/:postId/like/:commentId", isLoggedIn, postController.toggleCommentLike);
 
+router.get("/api/users", isLoggedIn, postController.getUsers);
+router.post("/share/:postId", isLoggedIn, postController.sharePost);
+
 module.exports = router;
 

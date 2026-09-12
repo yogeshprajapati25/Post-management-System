@@ -2,7 +2,9 @@ const userModel = require("../models/user");
 const postModel = require("../models/post");
 
 async function getProfileByEmail(email) {
-    let user = await userModel.findOne({ email: email }).populate("posts");
+    let user = await userModel.findOne({ email: email })
+        .populate("posts")
+        .populate({ path: "sharedPosts", populate: { path: "user", model: "user" } });
     return user;
 }
 
@@ -127,6 +129,37 @@ async function createPost(userEmail, content) {
     return post;
 }
 
+// Share a post with another user (by userId)
+async function sharePost(postId, fromUserId, toUserId) {
+    if (fromUserId.toString() === toUserId.toString()) {
+        return { ok: false, reason: 'CANNOT_SHARE_WITH_SELF' };
+    }
+
+    const post = await postModel.findById(postId);
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    const recipient = await userModel.findById(toUserId);
+    if (!recipient) return { ok: false, reason: 'USER_NOT_FOUND' };
+
+    // Don't add duplicates
+    const alreadyShared = (recipient.sharedPosts || []).some(
+        id => id.toString() === postId.toString()
+    );
+    if (alreadyShared) return { ok: false, reason: 'ALREADY_SHARED' };
+
+    recipient.sharedPosts.push(postId);
+    await recipient.save();
+    return { ok: true };
+}
+
+// Get all users except the current one (for share modal)
+async function getAllUsersExcept(currentUserId) {
+    return await userModel.find(
+        { _id: { $ne: currentUserId } },
+        'username name'   // only return what the modal needs
+    );
+}
+
 module.exports = {
     getProfileByEmail,
     getAllPosts,
@@ -139,4 +172,6 @@ module.exports = {
     deleteComment,
     editComment,
     toggleCommentLike,
+    sharePost,
+    getAllUsersExcept,
 };
