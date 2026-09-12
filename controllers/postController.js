@@ -2,8 +2,8 @@ const postService = require("../services/postService");
 
 // Show current user's profile and posts
 async function getProfile(req, res) {
-    let user = await postService.getProfileByEmail(req.user.email);
-    res.render("profile", { user });
+    const { user, collabPosts } = await postService.getProfileByEmail(req.user.email);
+    res.render("profile", { user, collabPosts, currentUserId: req.user.userid });
 }
 
 // Show all posts from all users

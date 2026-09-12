@@ -5,7 +5,12 @@ async function getProfileByEmail(email) {
     let user = await userModel.findOne({ email: email })
         .populate("posts")
         .populate({ path: "sharedPosts", populate: { path: "user", model: "user" } });
-    return user;
+
+    // Fetch posts where this user is a collaborator
+    const collabPosts = await postModel.find({ collaborators: user._id })
+        .populate("user");
+
+    return { user, collabPosts };
 }
 
 async function getAllPosts() {
@@ -151,6 +156,19 @@ async function sharePost(postId, fromUserId, toUserId) {
 
     const recipient = await userModel.findById(toUserId);
     if (!recipient) return { ok: false, reason: 'USER_NOT_FOUND' };
+
+    // Downgrade: if already collab, remove from collaborators and add to sharedPosts
+    const collabIdx = (post.collaborators || []).findIndex(id => id.toString() === toUserId.toString());
+    if (collabIdx !== -1) {
+        post.collaborators.splice(collabIdx, 1);
+        await post.save();
+        const alreadyShared = (recipient.sharedPosts || []).some(id => id.toString() === postId.toString());
+        if (!alreadyShared) {
+            recipient.sharedPosts.push(postId);
+            await recipient.save();
+        }
+        return { ok: true, downgraded: true };
+    }
 
     // Don't add duplicates
     const alreadyShared = (recipient.sharedPosts || []).some(

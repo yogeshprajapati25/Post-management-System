@@ -62,6 +62,30 @@
                         </p>
                         <p class="text-sm tracking-tight text-zinc-100"><%= post.content %></p>
                         <small class="mt-2 inline-block text-zinc-400"><%= post.likes.length %> likes</small>
+                        <!-- view only, no edit/delete -->
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
+
+        <% if (typeof collabPosts !== 'undefined' && collabPosts && collabPosts.length > 0) { %>
+        <div class="collab-posts mt-16">
+            <h3 class="text-zinc-400">Collab Posts</h3>
+            <div class="mt-5">
+                <% collabPosts.forEach(function(post){ %>
+                    <div class="w-1/3 p-4 rounded-md border border-purple-500/40 mb-4 bg-purple-900/10">
+                        <p class="text-xs text-purple-400 mb-1">Collab post — originally by
+                            <span class="text-blue-400">@<%= post.user && post.user.username ? post.user.username : 'unknown' %></span>
+                        </p>
+                        <p class="text-sm tracking-tight text-zinc-100"><%= post.content %></p>
+                        <small class="mt-2 inline-block text-zinc-400"><%= post.likes.length %> likes</small>
+                        <div class="btns flex gap-4 mt-1 items-center">
+                            <a class="text-zinc-400" href="/edit/<%= post._id %>">edit</a>
+                            <form method="post" action="/delete/<%= post._id %>" class="inline" onsubmit="return confirm('Delete this post?');">
+                                <button type="submit" class="text-red-500 hover:underline">delete</button>
+                            </form>
+                        </div>
                     </div>
                 <% }) %>
             </div>
