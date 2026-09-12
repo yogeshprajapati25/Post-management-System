@@ -62,7 +62,7 @@ async function getEdit(req, res) {
 
 // Update a post's content
 async function postUpdate(req, res) {
-    await postService.updatePostContent(req.params.id, req.body.content);
+    await postService.updatePostContent(req.params.id, req.body.content, req.user.userid);
     res.redirect("/profile");
 }
 
@@ -95,6 +95,16 @@ async function sharePost(req, res) {
     res.json(result);
 }
 
+// POST /collab-share/:postId — collab share a post
+async function collabShare(req, res) {
+    const result = await postService.collabShare(
+        req.params.postId,
+        req.user.userid,
+        req.body.toUserId
+    );
+    res.json(result);
+}
+
 module.exports = {
     getProfile,
     getFeed,
@@ -109,5 +119,6 @@ module.exports = {
     toggleCommentLike,
     getUsers,
     sharePost,
+    collabShare,
 };
 

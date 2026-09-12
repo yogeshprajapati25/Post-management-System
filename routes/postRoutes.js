@@ -18,6 +18,7 @@ router.get("/comment/:postId/like/:commentId", isLoggedIn, postController.toggle
 
 router.get("/api/users", isLoggedIn, postController.getUsers);
 router.post("/share/:postId", isLoggedIn, postController.sharePost);
+router.post("/collab-share/:postId", isLoggedIn, postController.collabShare);
 
 module.exports = router;
 

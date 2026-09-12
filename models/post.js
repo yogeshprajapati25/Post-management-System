@@ -13,8 +13,10 @@ const postSchema = mongoose.Schema({
     content:String,
     likes:[
         {type: mongoose.Schema.Types.ObjectId, ref:"user"}
-    ]
-    ,
+    ],
+    collaborators:[
+        {type: mongoose.Schema.Types.ObjectId, ref:"user"}
+    ],
     comments:[{
         user:{ type: mongoose.Schema.Types.ObjectId, ref: "user" },
         content:String,

@@ -40,6 +40,11 @@
                                 data-post-id="<%= post._id %>">
                                 Share
                             </button>
+                            <button type="button"
+                                class="text-purple-400 hover:underline collab-btn"
+                                data-post-id="<%= post._id %>">
+                                Collab Share
+                            </button>
                         </div>
                     </div>
                 <%}) %>
@@ -67,7 +72,7 @@
         <div id="share-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
             <div class="bg-zinc-800 rounded-xl p-6 w-80 max-h-[70vh] flex flex-col">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold">Share with...</h3>
+                    <h3 id="modal-title" class="text-lg font-semibold">Share with...</h3>
                     <button id="close-modal" class="text-zinc-400 hover:text-white text-xl leading-none">&times;</button>
                 </div>
                 <input id="user-search" type="text" placeholder="Search users..."
@@ -82,27 +87,36 @@
 
     <script>
         let sharePostId = null;
+        let shareMode = 'normal'; // 'normal' or 'collab'
         let allUsers = [];
 
+        async function openModal(postId, mode) {
+            sharePostId = postId;
+            shareMode = mode;
+            document.getElementById('modal-title').textContent =
+                mode === 'collab' ? 'Collab Share with...' : 'Share with...';
+            document.getElementById('share-modal').classList.remove('hidden');
+            document.getElementById('share-status').classList.add('hidden');
+            document.getElementById('user-search').value = '';
+            if (allUsers.length === 0) {
+                const res = await fetch('/api/users');
+                allUsers = await res.json();
+            }
+            renderUsers(allUsers);
+        }
+
         document.querySelectorAll('.share-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                sharePostId = btn.getAttribute('data-post-id');
-                document.getElementById('share-modal').classList.remove('hidden');
-                document.getElementById('share-status').classList.add('hidden');
-                document.getElementById('user-search').value = '';
-                if (allUsers.length === 0) {
-                    const res = await fetch('/api/users');
-                    allUsers = await res.json();
-                }
-                renderUsers(allUsers);
-            });
+            btn.addEventListener('click', () => openModal(btn.getAttribute('data-post-id'), 'normal'));
+        });
+
+        document.querySelectorAll('.collab-btn').forEach(btn => {
+            btn.addEventListener('click', () => openModal(btn.getAttribute('data-post-id'), 'collab'));
         });
 
         document.getElementById('close-modal').addEventListener('click', () => {
             document.getElementById('share-modal').classList.add('hidden');
         });
 
-        // Close modal on backdrop click
         document.getElementById('share-modal').addEventListener('click', function(e) {
             if (e.target === this) this.classList.add('hidden');
         });
@@ -127,8 +141,8 @@
                         <p class="text-xs text-zinc-400">${u.name}</p>
                     </div>
                     <button onclick="doShare('${u._id}')"
-                        class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 rounded-full">
-                        Share
+                        class="px-3 py-1 text-xs ${shareMode === 'collab' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'} rounded-full">
+                        ${shareMode === 'collab' ? 'Collab' : 'Share'}
                     </button>
                 </div>
             `).join('');
@@ -136,21 +150,26 @@
 
         async function doShare(toUserId) {
             const status = document.getElementById('share-status');
-            const res = await fetch(`/share/${sharePostId}`, {
+            const url = shareMode === 'collab'
+                ? `/collab-share/${sharePostId}`
+                : `/share/${sharePostId}`;
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ toUserId })
             });
             const data = await res.json();
             status.classList.remove('hidden', 'text-green-400', 'text-red-400');
+            const msgs = {
+                ALREADY_SHARED: 'Already shared with this user.',
+                ALREADY_COLLAB: 'Already a collaborator.',
+                NOT_OWNER: 'Only the post owner can collab share.',
+            };
             if (data.ok) {
-                status.textContent = 'Post shared successfully!';
+                status.textContent = shareMode === 'collab' ? 'Collab access granted!' : 'Post shared successfully!';
                 status.classList.add('text-green-400');
-            } else if (data.reason === 'ALREADY_SHARED') {
-                status.textContent = 'Already shared with this user.';
-                status.classList.add('text-red-400');
             } else {
-                status.textContent = 'Something went wrong.';
+                status.textContent = msgs[data.reason] || 'Something went wrong.';
                 status.classList.add('text-red-400');
             }
             status.classList.remove('hidden');

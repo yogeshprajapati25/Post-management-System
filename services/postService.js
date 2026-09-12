@@ -104,19 +104,30 @@ async function toggleCommentLike(postId, commentId, userId) {
     return { ok: true, likes: comment.likes.length };
 }
 
-async function updatePostContent(id, content) {
-    return await postModel.findOneAndUpdate({ _id: id }, { content: content });
+async function updatePostContent(id, content, userId) {
+    const post = await postModel.findById(id);
+    if (!post) return { ok: false, reason: 'NOT_FOUND' };
+    const isOwner = post.user.toString() === userId.toString();
+    const isCollab = (post.collaborators || []).some(c => c.toString() === userId.toString());
+    if (!isOwner && !isCollab) return { ok: false, reason: 'NOT_ALLOWED' };
+    post.content = content;
+    await post.save();
+    return { ok: true };
 }
 
 async function deletePost(id, userId) {
     let post = await postModel.findOne({ _id: id });
     if (!post) return { ok: false, reason: "NOT_FOUND" };
-    if (post.user.toString() !== userId.toString()) return { ok: false, reason: "NOT_OWNER" };
+
+    const isOwner = post.user.toString() === userId.toString();
+    const isCollab = (post.collaborators || []).some(c => c.toString() === userId.toString());
+    if (!isOwner && !isCollab) return { ok: false, reason: "NOT_ALLOWED" };
 
     await postModel.findByIdAndDelete(id);
-    let user = await userModel.findOne({ _id: post.user });
-    user.posts = user.posts.filter(pid => pid.toString() !== id.toString());
-    await user.save();
+    // Remove from owner's posts array
+    let owner = await userModel.findOne({ _id: post.user });
+    owner.posts = owner.posts.filter(pid => pid.toString() !== id.toString());
+    await owner.save();
     return { ok: true };
 }
 
@@ -152,7 +163,35 @@ async function sharePost(postId, fromUserId, toUserId) {
     return { ok: true };
 }
 
-// Get all users except the current one (for share modal)
+// Collab Share — adds user to post.collaborators, upgrades from sharedPosts if already there
+async function collabShare(postId, fromUserId, toUserId) {
+    if (fromUserId.toString() === toUserId.toString())
+        return { ok: false, reason: 'CANNOT_SHARE_WITH_SELF' };
+
+    const post = await postModel.findById(postId);
+    if (!post) return { ok: false, reason: 'POST_NOT_FOUND' };
+
+    // Only post owner can collab-share
+    if (post.user.toString() !== fromUserId.toString())
+        return { ok: false, reason: 'NOT_OWNER' };
+
+    const recipient = await userModel.findById(toUserId);
+    if (!recipient) return { ok: false, reason: 'USER_NOT_FOUND' };
+
+    const alreadyCollab = (post.collaborators || []).some(id => id.toString() === toUserId.toString());
+    if (alreadyCollab) return { ok: false, reason: 'ALREADY_COLLAB' };
+
+    // Upgrade: remove from sharedPosts if normal-shared before
+    const sharedIdx = (recipient.sharedPosts || []).findIndex(id => id.toString() === postId.toString());
+    if (sharedIdx !== -1) {
+        recipient.sharedPosts.splice(sharedIdx, 1);
+        await recipient.save();
+    }
+
+    post.collaborators.push(toUserId);
+    await post.save();
+    return { ok: true };
+}
 async function getAllUsersExcept(currentUserId) {
     return await userModel.find(
         { _id: { $ne: currentUserId } },
@@ -174,4 +213,5 @@ module.exports = {
     toggleCommentLike,
     sharePost,
     getAllUsersExcept,
+    collabShare,
 };
