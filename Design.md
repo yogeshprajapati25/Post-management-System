@@ -1,97 +1,207 @@
-# Design — Post-management-System
+# Design — PostHub (Post Management System)
 
-This document describes the current design and architecture of the codebase as provided (no code changes made).
+Live: [https://post-management-system-8abu.onrender.com/](https://post-management-system-8abu.onrender.com/)
 
-## High-level architecture
+---
 
-- Pattern: Small Express MVC-style application.
-- Presentation: EJS server-rendered views served from `views/`.
-- Server: `app.js` sets view engine, body parsing, cookie parser, and mounts routes.
-- Data: MongoDB via Mongoose models located in `models/`.
-- Auth: JWT token stored in a cookie named `token`.
+## Architecture
+
+Pattern: **MVC + Service Layer** on top of Express.
+
+```
+Request → Route → Controller → Service → Model → MongoDB
+                      ↓
+                   View (EJS)
+```
+
+- **Routes** — URL mapping + middleware chaining
+- **Controllers** — thin HTTP layer; parse req, call service, send response
+- **Services** — all business logic (auth, posts, sharing, collab)
+- **Models** — Mongoose schemas
+- **Views** — EJS server-rendered templates
+
+---
 
 ## Models
 
-- `user` (`models/user.js`)
-  - Fields: `username` (String), `name` (String), `age` (Number), `email` (String), `password` (String), `posts` (Array of ObjectId refs to `post`).
-  - Note: This file also calls `mongoose.connect("mongodb://127.0.0.1:27017/miniproject")`.
+### `user` (`models/user.js`)
+| Field | Type | Description |
+|---|---|---|
+| `username` | String | Unique display handle |
+| `name` | String | Full name |
+| `age` | Number | User age |
+| `email` | String | Login identifier |
+| `password` | String | bcrypt hash |
+| `posts` | [ObjectId → post] | Posts created by user |
+| `sharedPosts` | [ObjectId → post] | Posts normally shared to this user |
 
-- `post` (`models/post.js`)
-  - Fields: `user` (ObjectId ref to `user`), `date` (Date, default now), `content` (String), `likes` (Array of ObjectId refs to `user`).
+### `post` (`models/post.js`)
+| Field | Type | Description |
+|---|---|---|
+| `user` | ObjectId → user | Post owner |
+| `date` | Date | Creation timestamp |
+| `content` | String | Post body |
+| `likes` | [ObjectId → user] | Users who liked |
+| `collaborators` | [ObjectId → user] | Users with edit/delete access |
+| `comments` | [subdocument] | Embedded comments array |
 
-## Controllers (core responsibilities)
+### Comment subdocument (inside `post.comments`)
+| Field | Type | Description |
+|---|---|---|
+| `user` | ObjectId → user | Comment author |
+| `content` | String | Comment body |
+| `parent` | ObjectId (nullable) | Parent comment for threading |
+| `likes` | [ObjectId → user] | Users who liked the comment |
+| `date` | Date | Creation timestamp |
 
-- `authController.js`
-  - `getLanding` — render `index.ejs`.
-  - `getLogin` — render `login.ejs` (accepts `exists` and `registered` query flags).
-  - `getSignup` — render `signup.ejs`.
-  - `postRegister` — check for existing user, hash password (`bcrypt`), create user, sign JWT and set cookie, redirect to `/profile`.
-  - `postLogin` — find user by email, compare password with `bcrypt.compare`, sign JWT and set cookie on success.
-  - `logout` — clear cookie and redirect to `/login`.
+---
 
-- `postController.js`
-  - `getProfile` — load current user with populated `posts` and render `profile.ejs`.
-  - `getFeed` — load all posts (populated with `user`), render `feed.ejs` and pass `currentUserId`.
-  - `toggleLike` — add/remove current user's id from `post.likes` and redirect back to `feed` or `profile`.
-  - `getEdit` — render edit page for a post.
-  - `postUpdate` — update a post's `content`.
-  - `postDelete` — check ownership, delete post, remove reference from user.posts.
-  - `postCreate` — create a post, push id into user's `posts`.
+## Services
+
+### `authService.js`
+- `register({ email, password, username, name, age })` — checks duplicate, bcrypt hashes password, creates user, returns signed JWT
+- `login({ email, password })` — finds user, compares password, returns JWT
+
+### `postService.js`
+- `getProfileByEmail(email)` — populates `posts`, `sharedPosts` (with nested user), and queries `collabPosts` separately
+- `getAllPosts()` — all posts sorted by date desc, populated
+- `createPost(email, content)` — creates post, pushes to user.posts
+- `updatePostContent(id, content, userId)` — allows owner **or collaborator**
+- `deletePost(id, userId)` — allows owner **or collaborator**
+- `toggleLike(postId, userId)` — add/remove from likes array
+- `addComment / deleteComment / editComment / toggleCommentLike` — comment CRUD with ownership checks and cascading delete
+- `sharePost(postId, fromUserId, toUserId)` — pushes to recipient's `sharedPosts`; if already a collaborator, **downgrades** (removes from collaborators, adds to sharedPosts)
+- `collabShare(postId, fromUserId, toUserId)` — adds toUserId to `post.collaborators`; if already in sharedPosts, **upgrades** (removes from sharedPosts)
+- `getAllUsersExcept(currentUserId)` — returns all users for share modal
+
+---
+
+## Controllers
+
+### `authController.js`
+- `getLanding` → render `index.ejs`
+- `getLogin` / `getSignup` → render auth pages
+- `postRegister` → call `authService.register`, set JWT cookie, redirect `/profile`
+- `postLogin` → call `authService.login`, set JWT cookie, redirect `/profile`
+- `logout` → clear cookie, redirect `/login`
+
+### `postController.js`
+- `getProfile` → destructures `{ user, collabPosts }` from service, renders `profile.ejs` with `currentUserId`
+- `getFeed` → renders `feed.ejs` with all posts + `currentUserId`
+- `getUsers` → JSON response for share modal (`GET /api/users`)
+- `sharePost` → calls `postService.sharePost`, returns JSON
+- `collabShare` → calls `postService.collabShare`, returns JSON
+- All other post/comment handlers delegate to `postService`
+
+---
 
 ## Routes
 
-- `routes/authRoutes.js`
-  - `/` GET → landing
-  - `/login` GET → login page
-  - `/login` POST → login handler
-  - `/signup` GET → signup page
-  - `/register` POST → register handler (express-validator used)
-  - `/logout` GET → logout
+### `authRoutes.js`
+```
+GET  /           → getLanding
+GET  /login      → getLogin
+POST /login      → postLogin
+GET  /signup     → getSignup
+POST /register   → postRegister  (express-validator: email, password length, age)
+GET  /logout     → logout
+```
 
-- `routes/postRoutes.js` (all protected by `isLoggedIn` middleware)
-  - `/profile` GET → profile
-  - `/feed` GET → feed
-  - `/like/:id` GET → toggle like
-  - `/edit/:id` GET → edit page
-  - `/update/:id` POST → update post
-  - `/delete/:id` POST → delete post
-  - `/post` POST → create post
+### `postRoutes.js` (all behind `isLoggedIn`)
+```
+GET  /profile                              → getProfile
+GET  /feed                                 → getFeed
+POST /post                                 → postCreate
+GET  /edit/:id                             → getEdit
+POST /update/:id                           → postUpdate
+POST /delete/:id                           → postDelete
+GET  /like/:id                             → toggleLike
+POST /comment/:id                          → postComment
+POST /comment/:postId/delete/:commentId    → postDeleteComment
+POST /comment/:postId/edit/:commentId      → postEditComment
+GET  /comment/:postId/like/:commentId      → toggleCommentLike
+GET  /api/users                            → getUsers
+POST /share/:postId                        → sharePost
+POST /collab-share/:postId                 → collabShare
+```
+
+---
 
 ## Middleware
 
-- `middleware/auth.js` exposes `isLoggedIn` which reads `req.cookies.token` and verifies with `jwt.verify(token, "shhhh")`. If verification fails or token missing, request is redirected to `/`.
-
-## Auth flow (current)
-
-1. User registers via `/register`. Password is hashed using `bcrypt.hash` and a user document is created.
-2. After successful registration (or login), a JWT token is signed with payload `{ email, userid }` and secret string `"shhhh"` and stored in a cookie named `token`.
-3. Protected routes call `isLoggedIn` to decode the token and set `req.user` for downstream controllers.
-
-## Typical data flows
-
-- Create post: POST `/post` → `postController.postCreate` creates `post` doc and appends id to `user.posts`.
-- Like post: GET `/like/:id` → `postController.toggleLike` adds/removes current user id in the `likes` array and saves.
-- Delete post: POST `/delete/:id` → controller enforces owner check via `post.user.toString() !== req.user.userid.toString()` then deletes and removes ref from `user.posts`.
-
-## Views
-
-- `views/` contains EJS templates. Templates render server-side and rely on data objects (e.g., `user`, `posts`) passed from controllers.
-
-## Security & operational observations
-
-- Hardcoded secret (`"shhhh"`) and no token expiry reduces security.
-- Cookies are written without `httpOnly`, `secure`, or `sameSite` — vulnerable to XSS/CSRF risks.
-- DB connection in `models/user.js` makes startup ordering and error handling less explicit.
-- No centralized error-handler middleware; controllers typically redirect on error.
-
-## Extensibility & recommended follow-ups (no code changes made here)
-
-- Move configuration to environment variables (use `dotenv`).
-- Centralize DB connection in `app.js` or `config/db.js` and handle connection errors gracefully.
-- Use a proper secret store or `.env` for JWT secret and add token expiry (e.g., `expiresIn: '1h'`).
-- Set cookie options: `res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'lax' })`.
-- Add input sanitization and consistent validation (confirm password check, better error messages).
-- Add `start`/`dev` scripts and basic logging and error-handling middleware.
+### `middleware/auth.js` — `isLoggedIn`
+- Reads `req.cookies.token`
+- Verifies with `jwt.verify(token, process.env.JWT_SECRET)`
+- Sets `req.user = { email, userid }` on success
+- Redirects to `/` on failure
 
 ---
-This design doc reflects the repository as currently implemented.
+
+## Auth Flow
+
+1. Register → bcrypt hash password → create user → sign JWT (`{ email, userid }`, 7d expiry) → httpOnly cookie
+2. Login → find by email → bcrypt compare → sign JWT → httpOnly cookie
+3. Every protected request → `isLoggedIn` verifies cookie → sets `req.user`
+4. Logout → `res.clearCookie('token')`
+
+Cookie options: `{ httpOnly: true, secure: true (prod), sameSite: 'lax' }`
+
+---
+
+## Share & Collab Share Flow
+
+```
+Owner clicks "Share" on post
+  → POST /share/:postId { toUserId }
+  → recipient.sharedPosts.push(postId)
+  → shows on recipient's profile (read-only)
+
+Owner clicks "Collab Share" on post
+  → POST /collab-share/:postId { toUserId }
+  → post.collaborators.push(toUserId)
+  → shows on recipient's profile with edit/delete
+
+Upgrade (share → collab):
+  collabShare service removes postId from recipient.sharedPosts
+  then adds toUserId to post.collaborators
+
+Downgrade (collab → share):
+  sharePost service removes toUserId from post.collaborators
+  then adds postId to recipient.sharedPosts
+```
+
+---
+
+## Security
+
+| Measure | Status |
+|---|---|
+| Password hashing (bcrypt, 10 rounds) | ✅ |
+| JWT in httpOnly cookie | ✅ |
+| JWT secret from env variable | ✅ |
+| Secure + SameSite cookie flags in prod | ✅ |
+| Input validation on register (express-validator) | ✅ |
+| Ownership checks on edit/delete | ✅ |
+| Collaborator auth on edit/delete | ✅ |
+| Rate limiting on auth routes | ✅ (express-rate-limit) |
+| MongoDB injection prevention | ✅ (express-mongo-sanitize) |
+| Security headers | ✅ (helmet) |
+
+---
+
+## Data Flow Examples
+
+**Create post:**
+`POST /post` → `postCreate` → `postService.createPost` → insert `post` doc → push `post._id` into `user.posts`
+
+**Like post:**
+`GET /like/:id` → `toggleLike` → add/remove userId from `post.likes` → redirect
+
+**Nested comment:**
+`POST /comment/:id` with `{ content, parent }` → `addComment` → push subdoc into `post.comments` with `parent` set
+
+**Delete comment (cascade):**
+`deleteComment` builds a Set of target + all descendant comment IDs, then filters them all out in one save
+
+**Collab edit:**
+`POST /update/:id` → `updatePostContent(id, content, userId)` → checks `post.user === userId || post.collaborators.includes(userId)`

@@ -1,74 +1,145 @@
-# Post-management-System
+# PostHub — Post Management System
 
-Simple post-management web app (Express + EJS + MongoDB). 
+A social-style post management web app built with Node.js, Express, EJS, and MongoDB.
 
-## Overview
+🔗 **Live Demo:** [https://post-management-system-8abu.onrender.com/](https://post-management-system-8abu.onrender.com/)
 
-- Purpose: small social-style application that supports user signup/login, creating posts, liking posts, editing and deleting posts.
-- Stack: Node.js, Express, EJS, MongoDB (Mongoose), JWT for auth, bcrypt for password hashing.
+---
 
-## Quick start (current codebase, no changes)
+## Features
 
-Prerequisites:
+- **Auth** — Register, login, logout with JWT (stored in httpOnly cookie, 7-day expiry)
+- **Posts** — Create, edit, delete your own posts
+- **Feed** — View all posts from all users, sorted by newest
+- **Likes** — Like/unlike posts and comments
+- **Comments** — Nested threaded comments with replies, edit/delete, likes
+- **Share** — Share any of your posts with other users (view-only)
+- **Collab Share** — Share with edit/delete access; upgrades/downgrades between share modes
+- **Shared with You** — View posts others shared with you on your profile
+- **Collab Posts** — View and edit posts you've been given collaborator access to
 
-- Node.js (14+)
-- MongoDB running locally. The code currently expects MongoDB at `mongodb://127.0.0.1:27017/miniproject` (see `models/user.js`).
+---
 
-Install dependencies:
+## Tech Stack
 
-```bash
-npm install
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express.js |
+| Templating | EJS |
+| Database | MongoDB + Mongoose |
+| Auth | JWT + bcrypt |
+| Styling | TailwindCSS (CDN) |
+
+---
+
+## Project Structure
+
+```
+app.js                  — Entry point, middleware, DB connection, route mounting
+controllers/
+  authController.js     — Login, register, logout handlers
+  postController.js     — Post/comment/share/collab CRUD handlers
+services/
+  authService.js        — Auth business logic (register, login, JWT)
+  postService.js        — Post/comment/share/collab business logic
+models/
+  user.js               — User schema (posts, sharedPosts)
+  post.js               — Post schema (likes, comments, collaborators)
+routes/
+  authRoutes.js         — Auth routes with express-validator
+  postRoutes.js         — Protected post/share/collab routes
+middleware/
+  auth.js               — isLoggedIn JWT middleware
+views/
+  index.ejs             — Landing page
+  login.ejs             — Login form
+  signup.ejs            — Signup form
+  profile.ejs           — User profile, post creation, share/collab UI
+  feed.ejs              — All posts feed with comments
+  edit.ejs              — Edit post page
+  partials/             — (nav, head, post-cards if present)
+public/
+  uploads/              — Uploaded post images
 ```
 
-Run the app:
+---
+
+## Quick Start
+
+**Prerequisites:** Node.js 14+, MongoDB URI (local or Atlas)
 
 ```bash
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+# Fill in MONGO_URI, JWT_SECRET, PORT
+
+# Run
 node app.js
 ```
 
-Open in the browser: http://localhost:3000
+Open: [https://post-management-system-8abu.onrender.com/](https://post-management-system-8abu.onrender.com/)
 
-Notes about current (unchanged) defaults in code:
+---
 
-- App listens on port `3000` (hardcoded in `app.js`).
-- JWT secret is hardcoded as `"shhhh"` in `controllers/authController.js` and `middleware/auth.js`.
-- MongoDB connection is established inside `models/user.js`.
-- There is no `start` script in `package.json` (use `node app.js`).
+## Environment Variables
 
-## Project structure
+| Variable | Description |
+|---|---|
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret for signing JWTs |
+| `PORT` | Server port (default: 3000) |
+| `NODE_ENV` | `production` enables secure cookies |
 
-- `app.js` — application entry point and route mounting.
-- `package.json` — dependency list.
-- `controllers/` — `authController.js`, `postController.js` (business logic).
-- `models/` — `user.js`, `post.js` (Mongoose schemas). Note: `mongoose.connect(...)` runs in `models/user.js`.
-- `routes/` — `authRoutes.js`, `postRoutes.js` (route definitions, validation middleware used in auth routes).
-- `middleware/` — `auth.js` (`isLoggedIn` JWT-check middleware).
-- `views/` — EJS templates: `index.ejs`, `login.ejs`, `signup.ejs`, `profile.ejs`, `feed.ejs`, `edit.ejs`.
+---
 
+## API / Routes
 
+### Auth (`routes/authRoutes.js`)
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Landing page |
+| GET | `/login` | Login page |
+| POST | `/login` | Login handler |
+| GET | `/signup` | Signup page |
+| POST | `/register` | Register handler |
+| GET | `/logout` | Logout |
 
-## Where to look
+### Posts (`routes/postRoutes.js`) — all protected
+| Method | Path | Description |
+|---|---|---|
+| GET | `/profile` | User profile |
+| GET | `/feed` | All posts feed |
+| POST | `/post` | Create post |
+| GET | `/edit/:id` | Edit page |
+| POST | `/update/:id` | Update post content |
+| POST | `/delete/:id` | Delete post |
+| GET | `/like/:id` | Toggle like |
+| POST | `/comment/:id` | Add comment/reply |
+| POST | `/comment/:postId/delete/:commentId` | Delete comment |
+| POST | `/comment/:postId/edit/:commentId` | Edit comment |
+| GET | `/comment/:postId/like/:commentId` | Toggle comment like |
+| GET | `/api/users` | Get all users (for share modal) |
+| POST | `/share/:postId` | Normal share to a user |
+| POST | `/collab-share/:postId` | Collab share (edit/delete access) |
 
-- Authentication: `controllers/authController.js`, `routes/authRoutes.js`, `middleware/auth.js`.
-- Posts: `controllers/postController.js`, `routes/postRoutes.js`, `models/post.js`.
-- Views: `views/` directory (EJS templates).
+---
 
+## Share vs Collab Share
 
+| | Normal Share | Collab Share |
+|---|---|---|
+| Visible on recipient's profile | ✅ | ✅ |
+| Can edit | ❌ | ✅ |
+| Can delete | ❌ | ✅ |
+| Upgrade (share → collab) | — | Removes from sharedPosts, adds to collaborators |
+| Downgrade (collab → share) | Removes collab, adds to sharedPosts | — |
 
+---
 
-## Design (brief)
+## Design
 
-This project follows a small Express MVC pattern with server-rendered EJS views. Core pieces:
-
-- Models: Mongoose schemas in `models/` (`user`, `post`).
-- Controllers: handle HTTP requests and responses (located in `controllers/`).
-- Routes: map URLs to controller actions (`routes/`).
-- Middleware: auth middleware in `middleware/auth.js` protects routes using JWT in a cookie.
-
-I refactored controller logic into thin endpoints that call service modules in `services/` (new). Services encapsulate the core business logic (user creation/login, post creation/manipulation). This separation improves testability and keeps controllers focused on HTTP concerns.
-
-See `Design.md` for the original design document.
-
-
-
-
+See [Design.md](./Design.md) for full architecture details.
