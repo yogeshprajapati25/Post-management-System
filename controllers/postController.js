@@ -54,6 +54,12 @@ async function toggleLike(req, res) {
     else res.redirect("/profile");
 }
 
+async function toggleDislike(req, res) {
+    await postService.toggleDislike(req.params.id, req.user.userid);
+    if (req.query.from === "feed") res.redirect("/feed");
+    else res.redirect("/profile");
+}
+
 // Show edit page for a post
 async function getEdit(req, res) {
     let post = await postService.getPostById(req.params.id);
@@ -109,6 +115,7 @@ module.exports = {
     getProfile,
     getFeed,
     toggleLike,
+    toggleDislike,
     getEdit,
     postUpdate,
     postDelete,

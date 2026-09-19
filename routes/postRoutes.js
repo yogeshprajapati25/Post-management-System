@@ -6,6 +6,7 @@ const { isLoggedIn } = require("../middleware/auth");
 router.get("/profile", isLoggedIn, postController.getProfile);
 router.get("/feed", isLoggedIn, postController.getFeed);
 router.get("/like/:id", isLoggedIn, postController.toggleLike);
+router.get("/dislike/:id", isLoggedIn, postController.toggleDislike);
 router.get("/edit/:id", isLoggedIn, postController.getEdit);
 router.post("/update/:id", isLoggedIn, postController.postUpdate);
 router.post("/delete/:id", isLoggedIn, postController.postDelete);

@@ -20,13 +20,24 @@ async function getAllPosts() {
 
 async function toggleLike(postId, userId) {
     let post = await postModel.findOne({ _id: postId }).populate("user");
+    if (post.likes.indexOf(userId) === -1) post.likes.push(userId);
+    else post.likes.splice(post.likes.indexOf(userId), 1);
+    await post.save();
+    return post;
+}
 
-    if (post.likes.indexOf(userId) === -1) {
-        post.likes.push(userId);
+async function toggleDislike(postId, userId) {
+    let post = await postModel.findOne({ _id: postId });
+    if (!post.dislikes) post.dislikes = [];
+    const idx = post.dislikes.findIndex(id => id.toString() === userId.toString());
+    if (idx === -1) {
+        post.dislikes.push(userId);
+        // remove like if present
+        const likeIdx = post.likes.findIndex(id => id.toString() === userId.toString());
+        if (likeIdx !== -1) post.likes.splice(likeIdx, 1);
     } else {
-        post.likes.splice(post.likes.indexOf(userId), 1);
+        post.dislikes.splice(idx, 1);
     }
-
     await post.save();
     return post;
 }
@@ -221,6 +232,7 @@ module.exports = {
     getProfileByEmail,
     getAllPosts,
     toggleLike,
+    toggleDislike,
     getPostById,
     updatePostContent,
     deletePost,

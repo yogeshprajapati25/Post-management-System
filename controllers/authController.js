@@ -1,8 +1,15 @@
 const authService = require("../services/authService");
 
-// Landing page
+// Landing page — redirect to /feed if logged in, else /login
 async function getLanding(req, res) {
-    res.render("index");
+    const token = req.cookies && req.cookies.token;
+    if (token) {
+        try {
+            require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+            return res.redirect("/feed");
+        } catch (e) {}
+    }
+    res.redirect("/login");
 }
 
 // Login page
@@ -23,29 +30,24 @@ async function postRegister(req, res) {
         const isProd = process.env.NODE_ENV === 'production';
         const cookieOpts = { httpOnly: true, secure: isProd, sameSite: 'lax' };
         res.cookie("token", result.token, cookieOpts);
-        res.redirect("/profile");
+        return res.redirect("/feed");
     } catch (err) {
         if (err && err.code === "EXISTS") return res.redirect("/login?exists=1");
         return res.redirect("/login");
     }
 }
 
-// Handle login - FIXED: Using async/await instead of callback
+// Handle login
 async function postLogin(req, res) {
     let { email, password } = req.body;
-
-    // Validate that email and password are provided
-    if (!email || !password) {
-        return res.redirect("/login");
-    }
-
+    if (!email || !password) return res.redirect("/login");
     try {
         const result = await authService.login({ email, password });
         if (result && result.token) {
             const isProd = process.env.NODE_ENV === 'production';
             const cookieOpts = { httpOnly: true, secure: isProd, sameSite: 'lax' };
             res.cookie("token", result.token, cookieOpts);
-            return res.redirect("/profile");
+            return res.redirect("/feed");
         }
         return res.redirect("/login");
     } catch (err) {

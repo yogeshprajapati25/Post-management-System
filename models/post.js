@@ -14,6 +14,9 @@ const postSchema = mongoose.Schema({
     likes:[
         {type: mongoose.Schema.Types.ObjectId, ref:"user"}
     ],
+    dislikes:[
+        {type: mongoose.Schema.Types.ObjectId, ref:"user"}
+    ],
     collaborators:[
         {type: mongoose.Schema.Types.ObjectId, ref:"user"}
     ],
